@@ -247,11 +247,13 @@ class PuffAnalyzer(QWidget):
         self.area.addDock(self.d3,'right')
         self.area.addDock(self.d4,'below',self.d1)
         
-        self.threeD_plot=threeD_plot(self.puffs[0])
+        first_puff=self.puffs[0]
+        self.threeD_plot=threeD_plot(first_puff)
         self.d1.addWidget(self.threeD_plot)
         self.threeD_plot_ON=True
         self.trace_plot=pg.PlotWidget()
-        self.puffs[0].plot(self.trace_plot)
+        if first_puff is not None:
+            first_puff.plot(self.trace_plot)
         self.d2.addWidget(self.trace_plot)
 
         self.control_panel=QGridLayout()
@@ -435,7 +437,10 @@ class PuffAnalyzer(QWidget):
         self.clusterItem.setOpacity(.5)
         self.data_window.sigTimeChanged.connect(self.updateTime)        
         puff=self.puffs.getPuff()
-        x=np.floor(puff.kinetics['x']); y=np.floor(puff.kinetics['y'])
+        if puff is not None:
+            x=np.floor(puff.kinetics['x']); y=np.floor(puff.kinetics['y'])
+        else:
+            x=0; y=0
         roi_width=self.udc['roi_width']
         r=(roi_width-1)/2
         x0=x-r; x1=x+r+1; y0=y-r; y1=y+r+1;
@@ -536,6 +541,8 @@ class PuffAnalyzer(QWidget):
         self.currentPuff_spinbox.puffidx=value
         self.puffs.setIndex(value)
         puff=self.puffs[value]
+        if puff is None:
+            return 
         if self.threeD_plot_ON:
             self.threeD_plot.update_puff(puff)
         self.trace_plot.clear()
@@ -835,24 +842,32 @@ class threeD_plot(gl.GLViewWidget):
     def __init__(self,puff,parent=None):
         super(threeD_plot,self).__init__(parent)
         self.setCameraPosition(distance=150,elevation=30,azimuth=90)
-        image=np.copy(puff.gaussianFit)
-        mmax=np.max(puff.mean_image)
-        image=image/mmax
+        if puff is not None:
+            image=np.copy(puff.gaussianFit)
+            mmax=np.max(puff.mean_image)
+            image=image/mmax
+        else:
+            image=np.zeros((10,10))
         self.p1 = gl.GLSurfacePlotItem(z=image, shader='heightColor')
         ##    red   = pow(z * colorMap[0] + colorMap[1], colorMap[2])
         ##    green = pow(z * colorMap[3] + colorMap[4], colorMap[5])
         ##    blue  = pow(z * colorMap[6] + colorMap[7], colorMap[8])
         self.p1.shader()['colorMap'] = np.array([1, 0, 1, 1, .3, 2, 1, .4, 1])
         self.p1.scale(1, 1, 15.0)
-        self.p1.translate(-puff.udc['paddingXY'], -puff.udc['paddingXY'], 0)
+        if puff is not None:
+            self.p1.translate(-puff.udc['paddingXY'], -puff.udc['paddingXY'], 0)
         self.addItem(self.p1)
         
-        image=np.copy(puff.mean_image)
-        image=image/mmax
+        if puff is not None:
+            image=np.copy(puff.mean_image)
+            image=image/mmax
+        else:
+            image=np.zeros((10,10))
         self.p2 = gl.GLSurfacePlotItem(z=image, shader='heightColor')
         self.p2.shader()['colorMap'] = np.array([1, 0, 1, 1, .3, 2, 1, .4, 1])
         self.p2.scale(1, 1, 15.0)
-        self.p2.translate(-puff.udc['paddingXY'], -puff.udc['paddingXY'], 0)
+        if puff is not None:
+            self.p2.translate(-puff.udc['paddingXY'], -puff.udc['paddingXY'], 0)
         self.addItem(self.p2)
         
         self.shiftx=int(np.ceil(image.shape[0]/2))
@@ -861,6 +876,8 @@ class threeD_plot(gl.GLViewWidget):
     def update_puff(self,puff):
         self.p1.translate(-self.shiftx,0,0)
         self.p2.translate(self.shiftx,0,0)
+        if puff is None:
+            return
         image=np.copy(puff.gaussianFit)
         mmax=np.max(puff.mean_image)
         image=image/mmax
@@ -1266,7 +1283,10 @@ class Puffs:
         self.puffs=[Puff(i,self.clusters,self,persistentInfo) for i in np.arange(len(self.clusters.clusters))]
 
     def __getitem__(self, item):
-        return self.puffs[item]
+        if len(self.puffs)>0:
+            return self.puffs[item]
+        else:
+            return None
     def removeCurrentPuff(self):
         del self.puffs[self.index]
         if self.index==0:
@@ -1275,7 +1295,10 @@ class Puffs:
             self.index-=1
         return self.index
     def getPuff(self):
-        return self.puffs[self.index]
+        if len(self.puffs)>0:
+            return self.puffs[self.index]
+        else:
+            return None
     def increment(self):
         self.index+=1
         if len(self.puffs)<self.index+1:
