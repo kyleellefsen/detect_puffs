@@ -187,6 +187,7 @@ class PuffAnalyzer(QWidget):
         '''udc -- all the user defined constants'''
         super(PuffAnalyzer,self).__init__(parent) ## Create window with ImageView widget
         g.m.puffAnalyzer=self
+        self.setWindowIcon(QIcon('images/favicon.png'))
         self.data_window=data_window
         self.binary_window=binary_window
         self.highpass_window=highpass_window
@@ -274,6 +275,8 @@ class PuffAnalyzer(QWidget):
         self.filterButton.pressed.connect(self.openFilterGUI)
         self.widenButton=QPushButton('Widen all puff durations')
         self.widenButton.pressed.connect(self.widenPuffDurations)
+        self.compareWithManualButton=QPushButton('Compare with manual pts')
+        self.compareWithManualButton.pressed.connect(self.compareWithManual)
         self.exportButton=QPushButton('Export')
         self.exportButton.pressed.connect(self.export_gui)
         self.savePointsButton=QPushButton('Save points')
@@ -289,8 +292,9 @@ class PuffAnalyzer(QWidget):
         self.control_panel.addWidget(self.filterButton,6,0)
         self.control_panel.addWidget(self.exportButton,7,0)
         self.control_panel.addWidget(self.toggle3DButton,8,0)
-        self.control_panel.addWidget(self.savePointsButton,9,0)
-        self.control_panel.addWidget(self.saveButton,10,0)
+        self.control_panel.addWidget(self.compareWithManualButton,9,0)
+        self.control_panel.addWidget(self.savePointsButton,10,0)
+        self.control_panel.addWidget(self.saveButton,11,0)
         self.control_panelWidget=QWidget()
         self.control_panelWidget.setLayout(self.control_panel)
         self.d3.addWidget(self.control_panelWidget)
@@ -521,7 +525,42 @@ class PuffAnalyzer(QWidget):
             pfs=[puffs[idx] for idx in site]
             self.sites.append(Site(pfs))
 
-
+    def compareWithManual(self):
+        filename=g.m.settings['filename']
+        try:
+            directory=os.path.dirname(filename)
+        except:
+            directory=''
+        prompt='Load points file containing manually selected points.'
+        if filename is not None and directory != '':
+            filename= QFileDialog.getOpenFileName(self, prompt, directory, '*.txt')
+        else:
+            filename= QFileDialog.getOpenFileName(self, prompt, '*.txt')
+        filename=str(filename)
+        simulated_puffs=np.loadtxt(filename)
+        
+    
+    
+        detected_puffs=self.puffs.puffs
+        nearest_puffs=[]
+        for puff in detected_puffs:
+            k=puff.kinetics
+            detected_puff=np.array([k['t_peak'],k['x'],k['y']])
+            difference=np.sqrt(np.sum((simulated_puffs-detected_puff)**2,1))
+            closest_idx=np.argmin(difference)
+            #distance=difference[closest_idx]
+            closest_puff=simulated_puffs[closest_idx]
+            distance=detected_puff-closest_puff
+            nearest_puffs.append([closest_idx,distance[0],distance[1],distance[2]])
+            
+        nearest_puffs=np.array(nearest_puffs)
+        distances=np.sqrt(nearest_puffs[:,2]**2+nearest_puffs[:,3]**2)
+        nTruePositives=np.count_nonzero(distances<2)
+        print('Found {} puffs'.format(nTruePositives))
+        
+        #I need to finish this to include false positives and misses
+        
+        
     def toggleSites(self):
         if self.sitesVisible:
             self.data_window.imageview.removeItem(self.s2)
@@ -1110,7 +1149,7 @@ def getClusters(puffAnalyzer):
         for loop_i, ii in enumerate(oldremander):
             if percentOn and percent<int(100*ii/len(oldremander)):
                 percent=int(100*ii/len(oldremander))
-                print('Calculating Densities  {}%'.format(percent))
+                print('Getting Higher Points  {}%'.format(percent))
             higher_pt=getHigherPoint(ii,mask,center)
             if higher_pt is not None:
                 higher_pts[ii]=higher_pt

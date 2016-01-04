@@ -3,6 +3,7 @@
 Created on Wed Jun 25 13:45:36 2014
 
 @author: Kyle
+I found another library which performs a nearly identical function after I wrote this.  It is located in https://github.com/ZhuangLab/storm-analysis/blob/master/sa_library/gaussfit.py
 """
 from __future__ import absolute_import, division, print_function # Enable the new behaviour
 import numpy as np

@@ -10,6 +10,10 @@ from future.builtins import (bytes, dict, int, list, object, range, str, ascii, 
 import numpy as np
 import tifffile
 import os
+from PyQt4.QtCore import pyqtSignal as Signal
+from PyQt4.QtGui import *
+from PyQt4.QtCore import *
+import inspect
 import numpy.random as random
 import shutil
 from window import Window
@@ -25,7 +29,78 @@ cwd=os.path.dirname(os.path.abspath(__file__)) # cwd=r'C:\Users\Kyle Ellefsen\Do
 
 
 
-from process.BaseProcess import BaseProcess_noPriorWindow, WindowSelector, MissingWindowError, SliderLabel, CheckBox
+from process.BaseProcess import SliderLabel,  BaseProcess_noPriorWindow, FileSelector
+
+#class Simulate_Puffs(QWidget):
+#    closeSignal=Signal()
+#    def __init__(self,parent=None):
+#        super(Simulate_Puffs,self).__init__(parent) ## Create window with ImageView widget
+#        self.puffs=None
+#        self.__name__='simulate_puffs'
+#    def gui(self):
+#        self.makeSettingsDialog()
+#        
+#    def makeSettingsDialog(self):
+#        self.items=[]
+#        nFrames=SliderLabel(0)
+#        nFrames.setRange(0,10000)
+#        nFrames.setValue(1000)
+#        puffAmplitude=SliderLabel(2)
+#        puffAmplitude.setRange(0,10)
+#        puffAmplitude.setValue(5)
+#        nPuffs=SliderLabel(0)
+#        nPuffs.setRange(1,100)
+#        nPuffs.setValue(10)
+#        pointsFile=FileSelector('*.txt')
+#        self.items.append({'name':'nFrames','string':'Movie Duration (frames)','object':nFrames})
+#        self.items.append({'name':'puffAmplitude','string':'Amplitude of puffs (multiples of SNR)','object':puffAmplitude})
+#        self.items.append({'name':'nPuffs','string':'number of puffs','object': nPuffs})
+#        self.items.append({'name':'pointsFile','string':'Location to save points','object': pointsFile})
+#        self.ui=BaseDialog(self.items,self.__name__,self.__doc__)
+#        if hasattr(self, '__url__'):
+#            self.ui.bbox.addButton(QDialogButtonBox.Help)
+#            self.ui.bbox.helpRequested.connect(lambda : QDesktopServices.openUrl(QUrl(self.__url__)))
+#        self.ui.accepted.connect(self.call_from_gui)
+#        self.ui.show()
+#        g.m.dialog=self.ui
+#        
+#    def call_from_gui(self):
+#        varnames=[i for i in inspect.getargspec(self.__call__)[0] if i!='self']
+#        try:
+#            args=[self.getValue(name) for name in varnames]
+#        except IndexError:
+#            print("Names in {}: {}".format(self.__name__,varnames))
+#        self.__call__(*args)
+#        
+#    def getValue(self,name):
+#        return [i['value'] for i in self.items if i['name']==name][0]
+#        
+#    def start(self):
+#        frame = inspect.getouterframes(inspect.currentframe())[1][0]
+#        args, _, _, values = inspect.getargvalues(frame)
+#        funcname=self.__name__
+#        self.command=funcname+'('+', '.join([i+'='+str(values[i]) for i in args if i!='self'])+')'
+#        g.m.statusBar().showMessage('Performing {}...'.format(self.__name__))
+#    def end(self):
+#        commands=[self.command]
+#        newWindow=Window(self.newtif,str(self.newname),commands=commands)
+#        if np.max(self.newtif)==1 and np.min(self.newtif)==0: #if the array is boolean
+#            newWindow.imageview.setLevels(-.1,1.1)
+#        g.m.statusBar().showMessage('Finished with Simulating Puffs')
+#        del self.newtif
+#        return newWindow
+#        
+#    def __call__(self,nFrames=10000,puffAmplitude=5,nPuffs=10,pointsFile=''):
+#        print('called')
+#        self.start()
+#        self.newtif,self.puffs=generatePuffImage(nFrames,puffAmplitude,nPuffs)
+#        self.newname=' Simulated Puffs '
+#        if pointsFile!='':
+#            print("Saving Points file at '{}'".format(pointsFile))
+#            np.savetxt(pointsFile,self.puffs)
+#        return self.end()
+#        
+        
 class Simulate_Puffs(BaseProcess_noPriorWindow):
     def __init__(self):
         super().__init__()
@@ -41,15 +116,19 @@ class Simulate_Puffs(BaseProcess_noPriorWindow):
         nPuffs=SliderLabel(0)
         nPuffs.setRange(1,100)
         nPuffs.setValue(10)
+        pointsFile=FileSelector('*.txt')
         self.items.append({'name':'nFrames','string':'Movie Duration (frames)','object':nFrames})
         self.items.append({'name':'puffAmplitude','string':'Amplitude of puffs (multiples of SNR)','object':puffAmplitude})
         self.items.append({'name':'nPuffs','string':'number of puffs','object': nPuffs})
+        self.items.append({'name':'pointsFile','string':'Location to save points','object': pointsFile})
         super().gui()
-    def __call__(self,nFrames=10000,puffAmplitude=5,nPuffs=10):
-        print('called')
+    def __call__(self,nFrames=10000,puffAmplitude=5,nPuffs=10,pointsFile=''):
         self.start()
         self.newtif,self.puffs=generatePuffImage(nFrames,puffAmplitude,nPuffs)
         self.newname=' Simulated Puffs '
+        if pointsFile!='':
+            print("Saving Points file at '{}'".format(pointsFile))
+            np.savetxt(pointsFile,self.puffs)
         return self.end()
 simulate_puffs=Simulate_Puffs()
 
@@ -63,37 +142,9 @@ def generatePuffImage(nFrames=10000,puffAmplitude=5,nPuffs=10):
     
     mx,my=128,128
     A = random.randn(nFrames,mx,my) 
-    
-    #puffArray=[ x,    y,   ti, ] to create puffs
-#    puffArray=[[ 10,    115,  50 ], 
-#               [ 40,   22,   100],  
-#               [ 110,  10,   150], 
-#               [ 118,  76,   200], 
-#               [ 50,   50,   250], 
-#               [ 113,  10,   300],
-#               [ 11,   117,  350],
-#               [ 15,   22,   400],
-#               [ 65,   64,   450],
-#               [ 114,  110,  500],
-#               [ 10,   115,  550 ], 
-#               [ 40,   22,   600],  
-#               [ 110,  10,   650], 
-#               [ 118,  76,   700], 
-#               [ 50,   50,   750], 
-#               [ 113,  10,   800],
-#               [ 11,   117,  850],
-#               [ 15,   22,   900],
-#               [ 65,   64,   950]]
-#               
-#    (dt,dy,dx)=model_puff.shape  
-#    for p in puffArray:
-#        t=np.arange(p[2],p[2]+dt,dtype=np.int)
-#        y=np.arange(p[1]-dy/2,p[1]+dy/2,dtype=np.int)
-#        x=np.arange(p[0]-dx/2,p[0]+dx/2,dtype=np.int)
-#        A[np.ix_(t,y,x)]=A[np.ix_(t,y,x)]+puffAmplitude*model_puff
-    
     (dt,dy,dx)=model_puff.shape 
     puffs=[]
+    offset=np.array([18,9.578511,9.33569]) #the peak of the puff occurs at t=18, x=9.578511, y=9.33569.  These numbers were determined by fitting in the absense of noise. 
     for i in np.arange(nPuffs):
         t=random.randint(0,nFrames-dt)
         x=random.randint(0,mx-dx)
@@ -104,10 +155,12 @@ def generatePuffImage(nFrames=10000,puffAmplitude=5,nPuffs=10):
         # check if they are too close to other events
         if False:
             continue
-        A[np.ix_(tt,yy,xx)]=A[np.ix_(tt,yy,xx)]+puffAmplitude*model_puff
-        puffs.append([t,x,y])
-    #puffs=np.array(puffs)
-    return Window(A),puffs
+        A[np.ix_(tt,xx,yy)]=A[np.ix_(tt,xx,yy)]+puffAmplitude*model_puff
+        
+        puffs.append([t+offset[0],x+offset[1],y+offset[2]])
+    puffs=np.array(puffs)
+    puffs=puffs[puffs[:,0].argsort()] #sort by time
+    return A, puffs
     
 def detect_simulated_puffs():
     tmpdir=os.path.join(os.path.dirname(g.m.settings.config_file),'tmp')
