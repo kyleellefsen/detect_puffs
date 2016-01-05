@@ -16,6 +16,8 @@ from window import Window #to display any 3d array in Flika, just call Window(ar
 import pyqtgraph as pg
 from scipy import ndimage
 from .gaussianFitting import fitGaussian, fitRotGaussian
+from .densities import getDensities
+from .higher_pts import getHigherPoints
 from process.filters import butterworth_filter
 from scipy.signal import filtfilt
 import pyqtgraph.opengl as gl
@@ -193,6 +195,7 @@ class PuffAnalyzer(QWidget):
         self.highpass_window=highpass_window
         self.mt, self.mx,self.my = self.data_window.image.shape
         self.l=None
+        self.gettingClusters=False
         if persistentInfo is not None:
             if 'roi_width' not in persistentInfo.udc.keys():
                 persistentInfo.udc['roi_width']=3
@@ -204,7 +207,7 @@ class PuffAnalyzer(QWidget):
                 self.binary_window.close()
             else:
                 self.Densities=None
-            getDensities(self) #getDensities calls setupUI after it is finished
+            getDensities_wrapper(self) #getDensities calls setupUI after it is finished
     
     def loadPersistentInfo(self,persistentInfo):
         self.udc=persistentInfo.udc
@@ -877,6 +880,7 @@ class PuffAnalyzer(QWidget):
         g.m.statusBar().showMessage('Successfully saved {}'.format(os.path.basename(filename)))
             
 
+    
 class threeD_plot(gl.GLViewWidget):
     def __init__(self,puff,parent=None):
         super(threeD_plot,self).__init__(parent)
@@ -993,192 +997,6 @@ class Trash(list):
             idxs.append([point['data'] for point in s.data].index(puff))
         scatterRemovePoints(self.puffAnalyzer.s3,idxs)
 
-def getDensities(puffAnalyzer):
-    if puffAnalyzer.Densities is None: #if we aren't skipping the density calculation step because we loaded in a density window already.
-        binary_image=puffAnalyzer.binary_window.image
-        mt,mx,my=binary_image.shape
-        B=np.zeros(binary_image.shape)
-        maxPuffLen=puffAnalyzer.udc['maxPuffLen']# default: 15 
-        maxPuffDiameter=puffAnalyzer.udc['maxPuffDiameter']# default: 10
-        if maxPuffLen%2==0:
-            maxPuffLen+=1
-        if maxPuffDiameter%2==0:
-            maxPuffDiameter+=1
-        mask=np.zeros((maxPuffLen,maxPuffDiameter,maxPuffDiameter))
-        center=np.array([(maxPuffLen-1)/2, (maxPuffDiameter-1)/2, (maxPuffDiameter-1)/2]).astype(np.int)
-        for i in np.arange(mask.shape[0]):
-            for j in np.arange(mask.shape[1]):
-                for k in np.arange(mask.shape[2]):
-                    if ((i-center[0])**2)/center[0]**2 + ((j-center[1])**2)/center[1]**2 + ((k-center[2])**2)/center[2]**2 <= 1:
-                        mask[i,j,k]=1
-        B=np.zeros(binary_image.shape)
-        pxls=np.array(np.where(binary_image)).T
-        percent=0
-        for i,pxl in enumerate(pxls):
-            if percent<int(100*i/len(pxls)):
-                percent=int(100*i/len(pxls))
-                print('Calculating Densities  {}%'.format(percent))
-            t,x,y=pxl
-            try:
-                B[t,x,y]=np.count_nonzero(mask*binary_image[t-center[0]:t+center[0]+1,x-center[1]:x+center[1]+1,y-center[2]:y+center[2]+1])
-            except ValueError:
-                t0=t-center[0]
-                tf=t+center[0]+1
-                x0=x-center[1]
-                xf=x+center[1]+1
-                y0=y-center[2]
-                yf=y+center[2]+1
-                mask2=mask
-                if t0<0:
-                    mask2=mask2[center[0]-t:,:,:]
-                    t0=0
-                if x0<0:
-                    mask2=mask2[:,center[1]-x:,:]
-                    x0=0
-                if y0<0:
-                    mask2=mask2[:,:,center[2]-y:]
-                    y0=0
-                if tf>mt-1:
-                    mask2=mask2[:-(tf-mt+1),:,:]
-                    tf=mt-1
-                if xf>mx-1:
-                    mask2=mask2[:,:-(xf-mx+1),:]
-                    xf=mx-1
-                if yf>my-1:
-                    mask2=mask2[:,:,:-(yf-my+1)]
-                    yf=my-1
-                B[t,x,y]=np.count_nonzero(mask2*binary_image[t0:tf,x0:xf,y0:yf])
-
-
-        '''Here comes the clustering'''
-        #from scipy.stats import binom
-        #plot(binom.pmf(np.arange(0,nPixels),nPixels,.001)) #this is the probability distribution for the number of True pixels given a number of pixels
-        B=np.log(B+1)
-        puffAnalyzer.Densities=B
-    denseWindow=Window(puffAnalyzer.Densities)
-    denseWindow.setWindowTitle('Density Window')
-    thresh_slider=QDoubleSpinBox()
-    thresh_slider.setValue(puffAnalyzer.udc['density_threshold'])
-    thresh_button=QPushButton('Set Threshold')
-    denseWindow.layout.addWidget(thresh_slider)
-    denseWindow.layout.addWidget(thresh_button)
-    def DensityWindowPressed():
-        puffAnalyzer.udc['density_threshold']=thresh_slider.value()
-        getClusters(puffAnalyzer)
-    thresh_button.pressed.connect(DensityWindowPressed)
-    
-def getMask(nt=5,nx=5,ny=5):
-    mask=np.zeros((nt,nx,ny))
-    center=np.array([(nt-1)/2, (nx-1)/2, (ny-1)/2]).astype(np.int)
-    for i in np.arange(mask.shape[0]):
-        for j in np.arange(mask.shape[1]):
-            for k in np.arange(mask.shape[2]):
-                if ((i-center[0])**2)/center[0]**2 + ((j-center[1])**2)/center[1]**2 + ((k-center[2])**2)/center[2]**2 <= 1:
-                    mask[i,j,k]=1
-    return mask, center
-    
-def getClusters(puffAnalyzer):
-    puffAnalyzer=g.m.puffAnalyzer
-    mt,mx,my=puffAnalyzer.data_window.image.shape
-    maxPuffLen=puffAnalyzer.udc['maxPuffLen']
-    maxPuffDiameter=puffAnalyzer.udc['maxPuffDiameter']
-    density_threshold=puffAnalyzer.udc['density_threshold'] #2.7 #I came up with this threshold by looking at it, but there is a way to emperically determine what probability this corresponds to by using the binomial theorem, the number of voxels in our sphere, and the fact that only .1% of pixels will randomly be True
-    B=np.copy(puffAnalyzer.Densities)
-    B=B*(B>density_threshold)
-    idxs=np.where(B)
-    densities=B[idxs]
-    densities_jittered=densities+np.arange(len(densities))/(2*np.float(len(densities))) #I do this so no two densities are the same, so each cluster has a peak.
-    C=np.zeros(B.shape)
-    C_idx=np.zeros(B.shape,dtype=np.int)
-    idxs=np.vstack((idxs[0],idxs[1],idxs[2])).T
-    C[idxs[:,0],idxs[:,1],idxs[:,2]]=densities_jittered
-    C_idx[idxs[:,0],idxs[:,1],idxs[:,2]]=np.arange(len(idxs))
-    print("Number of pixels to analyze: {}".format(len(idxs)))
-    time_factor=puffAnalyzer.udc['time_factor'] #1 #this is how much I will 'shrink' time in order to calculate distances relative to pixels
-    
-    def getHigherPoint(ii,mask,center):
-        idx=idxs[ii]
-        density=densities_jittered[ii]          
-        t,x,y=idx
-        center=np.copy(center)
-        t0=t-center[0]
-        tf=t+center[0]+1
-        x0=x-center[1]
-        xf=x+center[1]+1
-        y0=y-center[2]
-        yf=y+center[2]+1
-        mask2=np.copy(mask)
-        if t0<0:
-            mask2=mask2[center[0]-t:,:,:]
-            center[0]=t
-            t0=0
-        elif tf>mt-1:
-            mask2=mask2[:-(tf-mt+1),:,:]
-            tf=mt-1
-        if x0<0:
-            mask2=mask2[:,center[1]-x:,:]
-            center[1]=x
-            x0=0
-        elif xf>mx-1:
-            mask2=mask2[:,:-(xf-mx+1),:]
-            xf=mx-1
-        if y0<0:
-            mask2=mask2[:,:,center[2]-y:]
-            center[2]=y
-            y0=0
-        elif yf>my-1:
-            mask2=mask2[:,:,:-(yf-my+1)]
-            yf=my-1
-            
-        positions=np.array(np.where(mask2*C[t0:tf,x0:xf,y0:yf]>density)).astype(float).T-center
-        if len(positions)==0:
-            return None
-        distances=np.sqrt((positions[:,0]/time_factor)**2+positions[:,1]**2+positions[:,2]**2)
-        higher_pt=positions[np.argmin(distances)].astype(np.int)+np.array([t0,x0,y0])+center
-        higher_pt=C_idx[higher_pt[0],higher_pt[1],higher_pt[2]]
-        return [np.min(distances), higher_pt, density]
-    higher_pts=np.zeros((len(idxs),3))
-    remander=np.arange(len(idxs))
-    percentOn=True
-    percent=0
-    for r in np.arange(5,51,2):
-        print('Finding all higher points in radius {}'.format(r))
-        mask,center=getMask(r,r,r)
-        oldremander=remander
-        remander=[]
-        for loop_i, ii in enumerate(oldremander):
-            if percentOn and percent<int(100*ii/len(oldremander)):
-                percent=int(100*ii/len(oldremander))
-                print('Getting Higher Points  {}%'.format(percent))
-            higher_pt=getHigherPoint(ii,mask,center)
-            if higher_pt is not None:
-                higher_pts[ii]=higher_pt
-            else:
-                remander.append(ii)
-        percentOn=False
-    maxDistance=np.sqrt((r/time_factor)**2+2*r**2)
-    #for ii in remander:
-    #    print(noname)
-    #    higher_pts[ii]=[maxDistance, ii, densities_jittered[ii]]
-    if len(remander)==1:
-        ii=remander[0]
-        higher_pts[ii]=[maxDistance, ii, densities_jittered[ii]]
-    elif len(remander)>1:
-        dens2=densities_jittered[remander]
-        idxs2=idxs[remander]
-        D=spatial.distance_matrix(idxs2,idxs2)
-        for pt in np.arange(len(D)):
-            dd=D[pt,:]
-            idx=np.argsort(dd)
-            ii=1
-            while dens2[idx[0]]>dens2[idx[ii]]: # We are searching for the closest point with a higher density
-                ii+=1
-                if ii==len(dd): #if this is the most dense point, then no point will have a higher density
-                    higher_pts[remander[pt]]= [maxDistance, remander[pt], dens2[pt] ] 
-                    break
-            if ii!=len(dd): #if this is the most dense point, then no point will have a higher density
-                higher_pts[remander[pt]]= [   dd[idx[ii]],  remander[idx[ii]],  dens2[idx[ii]]   ]
-    puffAnalyzer.clusters=Clusters(higher_pts,idxs,B.shape, puffAnalyzer)
 
 
 class Point():
@@ -1193,6 +1011,36 @@ class Point():
             self.descendants.extend(child.getDescendants())
         return self.descendants
         
+        
+def getDensities_wrapper(puffAnalyzer):
+    if puffAnalyzer.Densities is None: #if we aren't skipping the density calculation step because we loaded in a density window already.
+        Image=puffAnalyzer.binary_window.image
+        maxPuffLen=puffAnalyzer.udc['maxPuffLen']# default: 15 
+        maxPuffDiameter=puffAnalyzer.udc['maxPuffDiameter']# default: 10
+        puffAnalyzer.Densities=getDensities(Image, maxPuffLen, maxPuffDiameter)
+    denseWindow=Window(puffAnalyzer.Densities,name='Density Window')
+    puffAnalyzer.denseWindow=denseWindow
+    denseWindow.thresh_slider=QDoubleSpinBox()
+    denseWindow.thresh_slider.setValue(puffAnalyzer.udc['density_threshold'])
+    denseWindow.thresh_button=QPushButton('Set Threshold')
+    denseWindow.layout.addWidget(denseWindow.thresh_slider)
+    denseWindow.layout.addWidget(denseWindow.thresh_button)
+    denseWindow.thresh_button.pressed.connect(getClusters)
+    
+def getClusters():
+    qApp.processEvents()
+    puffAnalyzer=g.m.puffAnalyzer
+    if puffAnalyzer.gettingClusters:
+        return None
+    puffAnalyzer.gettingClusters=True
+    Densities = puffAnalyzer.Densities
+    puffAnalyzer.udc['density_threshold']=puffAnalyzer.denseWindow.thresh_slider.value()
+    density_thresh = puffAnalyzer.udc['density_threshold'] # I come up with thresholds by looking at it, but there is a way to emperically determine what probability this corresponds to by using the binomial theorem, the number of voxels in our sphere, and the fact that only .1% of pixels will randomly be True
+    time_factor=puffAnalyzer.udc['time_factor'] #1 #this is how much I will 'shrink' time in order to calculate distances relative to pixels    
+    higher_pts, idxs = getHigherPoints(Densities,density_thresh, time_factor)
+    puffAnalyzer.clusters=Clusters(higher_pts,idxs,Densities.shape, puffAnalyzer)
+    puffAnalyzer.gettingClusters=False
+    
 class Clusters():
     def __init__(self,higher_pts,idxs,movieShape,puffAnalyzer,persistentInfo=None):
         self.persistentInfo=persistentInfo
@@ -1214,6 +1062,8 @@ class Clusters():
             x=[d[2] for d in higher_pts_tmp] # density 
             self.pw.plot(x,np.log(y),pen=None, symbolBrush=QBrush(Qt.blue), symbol='o')
             self.pw.plotItem.axes['left']['item'].setLabel('Smallest distance to denser point (natural logarithm)'); self.pw.plotItem.axes['bottom']['item'].setLabel('Density (natural logarithm)')
+            self.pw.setWindowTitle('Density vs distance')
+            self.pw.setWindowIcon(QIcon('images/favicon.png'))            
             self.pw.show()
             self.vb.drawFinishedSignal.connect(self.manuallySelectClusterCenters)
             self.vb.EnterPressedSignal.connect(self.finished)
@@ -1272,7 +1122,8 @@ class Clusters():
                 points[higher_pts2[i]].children.append(points[i])
         
         self.clusters=[]
-        for center in centers:
+        nCenters=len(centers)
+        for i, center in enumerate(centers):
             descendants=points[center].getDescendants()
             cluster=[d.idx for d in descendants]
             cluster=np.array(cluster+[center])
@@ -1292,7 +1143,11 @@ class Clusters():
         self.pw.plot(self.higher_pts[centers_with_large_cluster,2],np.log(self.higher_pts[centers_with_large_cluster,0]),pen=None, symbolBrush=QBrush(Qt.green), symbol='o')
         self.pw.plot(self.higher_pts[centers_with_small_cluster,2],np.log(self.higher_pts[centers_with_small_cluster,0]),pen=None, symbolBrush=QBrush(Qt.red), symbol='o')
         self.pw.plot(self.higher_pts[outsideROI,2],np.log(self.higher_pts[outsideROI,0]),pen=None, symbolBrush=QBrush(Qt.blue), symbol='o')
+       
+        qApp.processEvents()
         
+        
+        print('Generating Cluster Movie')
         mt,mx,my=self.movieShape
         try:
             self.cluster_im=np.zeros((mt,mx,my,4),dtype=np.float16)
@@ -1300,6 +1155,7 @@ class Clusters():
             print('There is not enough memory to create the image of clusters (error in function manuallySelectClusterCenters).')
         cmap=matplotlib.cm.gist_rainbow
         for i in np.arange(len(self.clusters)):
+            qApp.processEvents()
             color=cmap(int(((i%5)*255./6)+np.random.randint(255./12)))
             for j in np.arange(len(self.clusters[i])):
                 t,x,y=self.idxs[self.clusters[i][j]]
@@ -1968,7 +1824,7 @@ class puff_3D(gl.GLViewWidget):
 
 
             
-        
+
         
 
 
