@@ -81,6 +81,7 @@ def getHigherPoints(Densities,density_thresh, time_factor):
         pos1[:,0]=pos1[:,0]/time_factor
         pos2=idxs[possible_higher_pts].astype(np.float)
         pos2[:,0]=pos2[:,0]/time_factor
+        print('Constructing {}x{} distance matrix'.format(len(pos1),len(pos2)))
         D=spatial.distance_matrix(pos1,pos2)
         for i, pt in enumerate(remander):
             density=densities_jittered[pt]
@@ -163,8 +164,8 @@ def getHigherPoint(q_results, q_progress, q_status, child_conn, args):
             if percent<int(100*nCompleted/nTotal):
                 percent=int(100*nCompleted/nTotal)
                 q_progress.put(percent)
-        if percent>=98:
-            break
+        #if percent>=99:
+        #    break
     q_results.put(higher_pts)
 
 def getHigherPointSingleProcess(args, remander):

@@ -14,7 +14,7 @@ norm_window=data_window
 norm_window.setName('Normalized Window')
 binary_window=threshold(1.1, keepSourceWindow=True)
 binary_window.setName('Binary Window')
-threshold_cluster(binary_window,data_window,norm_window,density_threshold=5)
+threshold_cluster(binary_window,data_window,norm_window,density_threshold=5.8)
 
 ## run through manual steps
 

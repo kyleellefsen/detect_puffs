@@ -196,6 +196,7 @@ class PuffAnalyzer(QWidget):
         self.mt, self.mx,self.my = self.data_window.image.shape
         self.l=None
         self.gettingClusters=False
+        self.generatingClusterMovie=False
         if persistentInfo is not None:
             if 'roi_width' not in persistentInfo.udc.keys():
                 persistentInfo.udc['roi_width']=3
@@ -1102,6 +1103,9 @@ class Clusters():
         self.getPuffs()
         
     def manuallySelectClusterCenters(self):
+        if self.puffAnalyzer.generatingClusterMovie:
+            return
+        self.puffAnalyzer.generatingClusterMovie=True
         self.pw.plotItem.clear()
         centers=[]
         outsideROI=[]
@@ -1155,13 +1159,12 @@ class Clusters():
             print('There is not enough memory to create the image of clusters (error in function manuallySelectClusterCenters).')
         cmap=matplotlib.cm.gist_rainbow
         for i in np.arange(len(self.clusters)):
-            qApp.processEvents()
             color=cmap(int(((i%5)*255./6)+np.random.randint(255./12)))
             for j in np.arange(len(self.clusters[i])):
                 t,x,y=self.idxs[self.clusters[i][j]]
                 self.cluster_im[t,x,y,:]=color
-        Window(self.cluster_im)
-    
+        Window(self.cluster_im, 'Cluster Movie')
+        self.puffAnalyzer.generatingClusterMovie=False
 
     
     
@@ -1228,6 +1231,7 @@ class Puffs:
         
 class Puff:
     def __init__(self,starting_idx,clusters,puffs,persistentInfo=None):
+        print('Calculating parameters for puff {}/{}'.format(starting_idx, len(clusters.clusters)-1))
         self.starting_idx=starting_idx
         self.clusters=clusters
         self.puffs=puffs
@@ -1270,9 +1274,9 @@ class Puff:
         '''
         For debugging, use the following code:
         self=g.m.puffAnalyzer.puffs.getPuff()
-        from analyze.puffs.threshold_cluster import *
+        from plugins.detect_puffs.threshold_cluster import *
         [(t0,t1),(x0,x1),(y0,y1)]=self.bounds
-        mt,mx,my=self.puffs.highpass_im.shape
+        mt,mx,my=self.puffs.highpass_window.image.shape
         '''
         
         bb=self.bounds
@@ -1357,9 +1361,20 @@ class Puff:
         y=int(np.floor(yorigin))-self.bounds[2][0]
         roi_width=self.udc['roi_width']
         r=(roi_width-1)/2        
+        
+        bounds=[x-r,x+r+1,y-r,y+r+1]
+        if I[0,x-r:x+r+1,y-r:y+r+1].size==0: # check if roi exceeds the region we cut out of the window
+            if bounds[0]<0:
+                bounds[0]=0
+            if bounds[2]<0:
+                bounds[2]=0
+            if bounds[1]>I.shape[1]:
+                bounds[1]=I.shape[1]
+            if bounds[3]>I.shape[2]:
+                bounds[3]=I.shape[2]
         for i in np.arange(len(trace)):
             #trace[i]=I[i,x,y]
-            trace[i]=np.mean(I[i,x-r:x+r+1,y-r:y+r+1])
+            trace[i]=np.mean(I[i,bounds[0]:bounds[1],bounds[2]:bounds[3]])
             #trace[i]=2*np.sum((I[i]-baseline)*I_norm)+baseline
             #I'm not sure why the 2 is needed, but this seems to always work out to 1:
             #            from analyze.puffs.gaussianFitting import gaussian
@@ -1906,6 +1921,8 @@ class ClusterViewBox(pg.ViewBox):
                 #print("Drag continuing x={},y={}".format(self.x,self.y))
                 self.currentROI.extend(self.x,self.y)
         else:
+            print('event in ClusterViewBox: {}'.format(ev))
+            g.m.ev=ev
             pg.ViewBox.mouseDragEvent(self, ev)
             
 class ScatterViewBox(ClusterViewBox):
