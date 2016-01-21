@@ -66,7 +66,7 @@ class Threshold_cluster(BaseProcess):
         | paddingT_post (int)  -- How many frames after the event detection should we look for the end of the event.
         | maxSigmaForGaussianFit (int) -- When fitting with a gaussian, what is the upper bound for the sigma (or sigmax and sigmay) parameter 
         | rotatedfit (bool) -- Set this to True to fit to a 2d rotating gaussian.
-        | radius (float) -- Puffs seperated by less than this amount (in pixels) will be grouped together in a site.
+        | radius (float) -- Puffs seperated by less than this amount (in pixels) will be grouped together in a group.
         | maxPuffLen (int) -- maximum possible duration of puff length in frames.  If puffs last longer, use a bigger value.  This affects 'chunking' when determining distances between pixels.  It's better to overestimate, although increasing too much will slow down analysis.
         | maxPuffDiameter (int) -- This affects 'chunking' when determining distances between pixels.    This value divided by two is also used as the radius for calculating densities
         | density_threshold (float) -- Get rid of all the points you are sure don't belong to puffs.  
@@ -165,7 +165,7 @@ class Threshold_cluster(BaseProcess):
             udc['paddingT_post']=paddingT_post
             udc['maxSigmaForGaussianFit']=maxSigmaForGaussianFit
             udc['rotatedfit']=rotatedfit
-            udc['radius']=radius #radius -- all puffs this distance away (measured in pixels) from each other will automatically be grouped together into a site
+            udc['radius']=radius #radius -- all puffs this distance away (measured in pixels) from each other will automatically be grouped together into a group
             udc['maxPuffLen']=maxPuffLen
             udc['maxPuffDiameter']=maxPuffDiameter
             if density_threshold is None:
@@ -213,9 +213,9 @@ class PuffAnalyzer(QWidget):
     def loadPersistentInfo(self,persistentInfo):
         self.udc=persistentInfo.udc
         self.clusters=Clusters(None,None,None,self,persistentInfo)
-        self.sites=Sites(self)
-        for i in np.arange(len(persistentInfo.sites)):
-            self.sites.append(Site([puff for puff in g.m.puffAnalyzer.puffs.puffs if puff.starting_idx in persistentInfo.sites[i]]))
+        self.groups=Groups(self)
+        for i in np.arange(len(persistentInfo.groups)):
+            self.groups.append(Group([puff for puff in g.m.puffAnalyzer.puffs.puffs if puff.starting_idx in persistentInfo.groups[i]]))
         self.trash=Trash(self)
         for i in np.arange(len(persistentInfo.puffs)):
             if persistentInfo.puffs[i]['trashed']:
@@ -225,9 +225,9 @@ class PuffAnalyzer(QWidget):
         self.setupUI()
         
     def preSetupUI(self):
-        self.sites=Sites(self)
+        self.groups=Groups(self)
         self.trash=Trash(self)
-        self.autoGroupSites(self.udc['radius'])
+        self.autoGroupEvents(self.udc['radius'])
         g.m.settings['threshold_cluster_settings']=self.udc
         g.m.settings.save()
         self.setupUI()
@@ -269,8 +269,8 @@ class PuffAnalyzer(QWidget):
         self.discardButton.pressed.connect(self.discard_currPuff)
         self.togglePuffsButton=QPushButton('Toggle Puffs')
         self.togglePuffsButton.pressed.connect(self.togglePuffs)
-        self.toggleSitesButton=QPushButton('Toggle Sites')
-        self.toggleSitesButton.pressed.connect(self.toggleSites)
+        self.toggleGroupsButton=QPushButton('Toggle Groups')
+        self.toggleGroupsButton.pressed.connect(self.toggleGroups)
         self.toggleTrashButton=QPushButton('Toggle Trash')
         self.toggleTrashButton.pressed.connect(self.toggleTrash)
         self.toggle3DButton=QPushButton('Toggle 3D Plot')
@@ -281,7 +281,7 @@ class PuffAnalyzer(QWidget):
         self.widenButton.pressed.connect(self.widenPuffDurations)
         self.compareWithManualButton=QPushButton('Compare with manual pts')
         self.compareWithManualButton.pressed.connect(self.compareWithManual)
-        self.exportButton=QPushButton('Export')
+        self.exportButton=QPushButton('Export to Excel')
         self.exportButton.pressed.connect(self.export_gui)
         self.savePointsButton=QPushButton('Save points')
         self.savePointsButton.pressed.connect(self.savePoints)
@@ -290,7 +290,7 @@ class PuffAnalyzer(QWidget):
         self.control_panel.addWidget(self.currentPuff_spinbox,0,0)
         self.control_panel.addWidget(self.discardButton,1,0)
         self.control_panel.addWidget(self.togglePuffsButton,2,0)
-        self.control_panel.addWidget(self.toggleSitesButton,3,0)
+        self.control_panel.addWidget(self.toggleGroupsButton,3,0)
         self.control_panel.addWidget(self.toggleTrashButton,4,0)
         self.control_panel.addWidget(self.widenButton,5,0)
         self.control_panel.addWidget(self.filterButton,6,0)
@@ -303,7 +303,7 @@ class PuffAnalyzer(QWidget):
         self.control_panelWidget.setLayout(self.control_panel)
         self.d3.addWidget(self.control_panelWidget)
         self.puffsVisible=True
-        self.sitesVisible=False
+        self.groupsVisible=False
         self.trashVisible=False
         self.currentPuff_spinbox.puffidx=-1
         
@@ -315,9 +315,9 @@ class PuffAnalyzer(QWidget):
             y=puff.kinetics['y']
             self.s1.addPoints(pos=[[x,y]],data=puff, brush=pg.mkBrush(puff.color),pen=pg.mkPen([0,0,0,255]))
         self.s1.sigClicked.connect(self.clicked)
-        self.s2=pg.ScatterPlotItem(size=5,  brush=pg.mkBrush(0, 255, 0, 255),pen=pg.mkPen([0,0,0,255])) #SITES
-        self.s2.sigClicked.connect(self.clickedSite)
-        self.s2.addPoints(pos=[site.pos for site in self.sites],data=self.sites)
+        self.s2=pg.ScatterPlotItem(size=5,  brush=pg.mkBrush(0, 255, 0, 255),pen=pg.mkPen([0,0,0,255])) #GROUPS
+        self.s2.sigClicked.connect(self.clickedGroup)
+        self.s2.addPoints(pos=[group.pos for group in self.groups],data=self.groups)
         self.s3=pg.ScatterPlotItem(size=5,  brush=pg.mkBrush(0, 255, 255, 255),pen=pg.mkPen([0,0,0,255])) #TRASH
         self.s3.sigClicked.connect(self.clickedTrash)
         self.s4=pg.ScatterPlotItem(size=10, brush=pg.mkBrush(255, 255, 255, 120),pen=pg.mkPen([0,0,0,255]))
@@ -336,7 +336,7 @@ class PuffAnalyzer(QWidget):
             x=puff.kinetics['x']
             y=puff.kinetics['y']
             self.s3.addPoints(pos=[[x,y]],data=puff)
-        self.siteAnalyzer=None
+        self.groupAnalyzer=None
         self.lastClicked = None
         self.linkTif()
         self.updateScatter()
@@ -344,10 +344,13 @@ class PuffAnalyzer(QWidget):
         self.show()
         
     def save(self):
-        g.m.statusBar().showMessage('Saving'); print('Saving')
-        persistentInfo=PersistentInfo(self)
         filename=self.data_window.filename
+        
         filename=os.path.splitext(filename)[0]+'.flika'
+        msg='Saving to {}'.format(filename)
+        g.m.statusBar().showMessage(msg); print(msg)
+        persistentInfo=PersistentInfo(self)
+        
         with bz2.BZ2File(filename, 'w') as f:
             pickle.dump(persistentInfo, f)
         g.m.statusBar().showMessage('Saved Flika file'); print('Saved Flika file')
@@ -486,7 +489,7 @@ class PuffAnalyzer(QWidget):
         self.data_window.sigTimeChanged.disconnect(self.updateTime) 
         self.data_window.imageview.view.removeItem(self.clusterItem)
         if self.data_window in g.m.windows:
-            if self.sitesVisible:
+            if self.groupsVisible:
                 self.data_window.imageview.removeItem(self.s2)
             if self.puffsVisible:
                 self.data_window.imageview.removeItem(self.s1)
@@ -496,10 +499,10 @@ class PuffAnalyzer(QWidget):
             g.m.windows.remove(self)
         
         
-    def autoGroupSites(self,radius=np.sqrt(2)):
-        sites=self.sites[:]
-        for site in sites:
-            self.sites.remove(site) 
+    def autoGroupEvents(self,radius=np.sqrt(2)):
+        groups=self.groups[:]
+        for group in groups:
+            self.groups.remove(group) 
         puffs=self.puffs.puffs
         distances=np.zeros((len(puffs),len(puffs)))
         for i in np.arange(len(puffs)):
@@ -508,26 +511,26 @@ class PuffAnalyzer(QWidget):
                 x1,y1=(puffs[j].kinetics['x'], puffs[j].kinetics['y'])
                 distances[i,j]=np.sqrt((x1-x0)**2+(y1-y0)**2)
         distances=distances<=radius
-        sites=[]
+        groups=[]
         puffsAdded=set()
         for i in np.arange(len(puffs)):
             pfs=set([s[0] for s in np.argwhere(distances[i])])
             if len(pfs.intersection(puffsAdded))==0:
-                sites.append(pfs)
+                groups.append(pfs)
                 puffsAdded=puffsAdded.union(pfs)
             else:
-                old_sites=[sites.index(site) for site in sites if len(site.intersection(pfs))>0]
-                if len(old_sites)==1:
-                    idx=old_sites[0]
-                    sites[idx]=sites[idx].union(pfs)
+                old_groups=[groups.index(group) for group in groups if len(group.intersection(pfs))>0]
+                if len(old_groups)==1:
+                    idx=old_groups[0]
+                    groups[idx]=groups[idx].union(pfs)
                     puffsAdded=puffsAdded.union(pfs)
-                else: #merge old sites and new puffs to them, delete old sites
-                    sites.append(set.union(set.union(*[sites[i] for i in old_sites]),pfs))
-                    for index in sorted(old_sites, reverse=True):
-                        del sites[index]
-        for site in sites:
-            pfs=[puffs[idx] for idx in site]
-            self.sites.append(Site(pfs))
+                else: #merge old groups and new puffs to them, delete old groups
+                    groups.append(set.union(set.union(*[groups[i] for i in old_groups]),pfs))
+                    for index in sorted(old_groups, reverse=True):
+                        del groups[index]
+        for group in groups:
+            pfs=[puffs[idx] for idx in group]
+            self.groups.append(Group(pfs))
 
     def compareWithManual(self):
         filename=g.m.settings['filename']
@@ -565,12 +568,12 @@ class PuffAnalyzer(QWidget):
         #I need to finish this to include false positives and misses
         
         
-    def toggleSites(self):
-        if self.sitesVisible:
+    def toggleGroups(self):
+        if self.groupsVisible:
             self.data_window.imageview.removeItem(self.s2)
         else:
             self.data_window.imageview.addItem(self.s2)
-        self.sitesVisible=not self.sitesVisible
+        self.groupsVisible=not self.groupsVisible
     def toggleTrash(self):
         if self.trashVisible:
             self.data_window.imageview.removeItem(self.s3)
@@ -643,12 +646,12 @@ class PuffAnalyzer(QWidget):
         point=points[0]
         puff=point.data()
         self.setCurrPuff(self.puffs.puffs.index(puff))
-    def clickedSite(self,plot,points):
+    def clickedGroup(self,plot,points):
         point=points[0]
-        site=point.data()
-        if self.siteAnalyzer is not None:
-            self.siteAnalyzer=None
-        self.siteAnalyzer=SiteAnalyzer(site)
+        group=point.data()
+        if self.groupAnalyzer is not None:
+            self.groupAnalyzer=None
+        self.groupAnalyzer=GroupAnalyzer(group)
     def clickedTrash(self,plot,points):
         point=points[0]
         puff=point.data()
@@ -680,27 +683,27 @@ class PuffAnalyzer(QWidget):
                 self.discard_currPuff()
         elif ev.key()==Qt.Key_G:
             #Group all events in roi
-            sites=[pt.data() for pt in self.s2.points() if self.roi.contains(pt.pos().x(),pt.pos().y())]
-            if len(sites)==0:
+            groups=[pt.data() for pt in self.s2.points() if self.roi.contains(pt.pos().x(),pt.pos().y())]
+            if len(groups)==0:
                 return
-            puffs=list(itertools.chain(*[site.puffs for site in sites]))
-            for site in sites:
-                self.sites.remove(site) 
-            self.sites.append(Site(puffs))
+            puffs=list(itertools.chain(*[group.puffs for group in groups]))
+            for group in groups:
+                self.groups.remove(group) 
+            self.groups.append(Group(puffs))
             self.s2.clear()
-            for site in self.sites:
-                self.s2.addPoints(pos=[site.pos],data=site)
+            for group in self.groups:
+                self.s2.addPoints(pos=[group.pos],data=group)
         elif ev.key()==Qt.Key_U:
-            sites=[pt.data() for pt in self.s2.points() if self.roi.contains(pt.pos().x(),pt.pos().y())]
-            if len(sites)==0:
+            groups=[pt.data() for pt in self.s2.points() if self.roi.contains(pt.pos().x(),pt.pos().y())]
+            if len(groups)==0:
                 return
-            puffs=list(itertools.chain(*[site.puffs for site in sites]))
-            for site in sites:
-                self.sites.remove(site) 
-            self.sites.extend([Site([p]) for p in puffs])
+            puffs=list(itertools.chain(*[group.puffs for group in groups]))
+            for group in groups:
+                self.groups.remove(group) 
+            self.groups.extend([Group([p]) for p in puffs])
             self.s2.clear()
-            for site in self.sites:
-                self.s2.addPoints(pos=[site.pos],data=site)
+            for group in self.groups:
+                self.s2.addPoints(pos=[group.pos],data=group)
             
     def discard_currPuff(self):
         puff=self.puffs.getPuff()
@@ -708,7 +711,7 @@ class PuffAnalyzer(QWidget):
         
     def discard_puffs(self,puffs):
         self.trash.addPuffs(puffs)
-        self.sites.removePuffs(puffs)
+        self.groups.removePuffs(puffs)
         self.puffs.removePuffs(puffs)
         if len(self.puffs.puffs)==0:
             self.close()
@@ -798,25 +801,24 @@ class PuffAnalyzer(QWidget):
         g.m.statusBar().showMessage('Saving {}'.format(os.path.basename(filename)))
         
         workbook = Workbook() 
-        sheet = workbook.create_sheet()
-        sheet.title="Puff Data"
+        sheet = workbook.create_sheet(title='Event Data')
         header=['Group #','Group x','Group y','No. Events','Max Amp','x','y','t_peak','Amplitude','sigmax','sigmay','angle','r20','r50','r80','r100','f80','f50','f20','f0']
         for j in np.arange(len(header)):
             col = get_column_letter(j+1)
             sheet.cell("{}{}".format(col,1)).value=header[j]
         row=2
         groupN=1
-        for site in self.sites:
+        for group in self.groups:
             r=str(row)
-            groupx,groupy=site.pos
-            nEvents=len(site.puffs)
-            maxAmp=np.max([puff.kinetics['amplitude'] for puff in site.puffs])
+            groupx,groupy=group.pos
+            nEvents=len(group.puffs)
+            maxAmp=np.max([puff.kinetics['amplitude'] for puff in group.puffs])
             sheet.cell('A'+r).value=groupN
             sheet.cell('B'+r).value=groupx
             sheet.cell('C'+r).value=groupy
             sheet.cell('D'+r).value=nEvents
             sheet.cell('E'+r).value=maxAmp
-            for puff in site.puffs:
+            for puff in group.puffs:
                 r=str(row)
                 k=puff.kinetics
                 sheet.cell('F'+r).value=k['x']
@@ -850,33 +852,32 @@ class PuffAnalyzer(QWidget):
                 row+=1
             groupN+=1
             
-        sheet = workbook.create_sheet()
-        sheet.title="Site traces"
+        sheet = workbook.create_sheet(title="Group traces")
         groupN=1
-        for site in self.sites:
-            x=int(np.floor(site.pos[0]))
-            y=int(np.floor(site.pos[1]))
+        for group in self.groups:
+            x=int(np.floor(group.pos[0]))
+            y=int(np.floor(group.pos[1]))
             roi_width=g.m.puffAnalyzer.udc['roi_width']
             r=(roi_width-1)/2        
             trace=self.data_window.image[:,x-r:x+r+1,y-r:y+r+1]
             trace=np.mean(np.mean(trace,1),1)
             col=get_column_letter(groupN)
-            sheet.cell(col+'1').value="Site #{}".format(groupN)
+            sheet.cell(col+'1').value="Group #{}".format(groupN)
             for i in np.arange(len(trace)):
                 sheet.cell(col+str(i+2)).value=trace[i]
             groupN+=1
         
-        sheet = workbook.create_sheet()
-        sheet.title="Peak aligned Puff Traces"
-        siteN=1
+        sheet = workbook.create_sheet(title="Peak aligned Event Traces")
+        groupN=1
         max_peak_idx=np.max([puff.kinetics['t_peak']-puff.kinetics['t_start'] for puff in self.puffs])
         for puff in self.puffs.puffs:
-            col=get_column_letter(siteN)
+            col=get_column_letter(groupN)
             peak_idx=puff.kinetics['t_peak']-puff.kinetics['t_start']
             for i in np.arange(len(puff.trace)):
                 offset=max_peak_idx-peak_idx
                 sheet.cell(col+str(offset+i+1)).value=puff.trace[i]
-            siteN+=1
+            groupN+=1
+        workbook.remove_sheet(workbook.worksheets[0]) #get rid of blank first worksheet
         workbook.save(filename)
         g.m.statusBar().showMessage('Successfully saved {}'.format(os.path.basename(filename)))
             
@@ -934,9 +935,9 @@ class threeD_plot(gl.GLViewWidget):
         self.p2.translate(-self.shiftx,0,0)
         #self.setMinimumHeight(300)
 
-class Sites(list):
+class Groups(list):
     def __init__(self,puffAnalyzer):
-        super(Sites,self).__init__()
+        super(Groups,self).__init__()
         self.puffAnalyzer=puffAnalyzer
     def removePuffs(self,puffs):
         s2=self.puffAnalyzer.s2
@@ -953,16 +954,16 @@ class Sites(list):
         idxs.sort(reverse=True)
         if len(idxs)>0:
             for i in idxs:
-                site=self[i]
-                scatterRemovePoints(s2,[iidx for iidx, pt in enumerate(s2.points()) if pt.data()==site])
-                site.removePuffs(puffs)
-                if len(site.puffs)==0:
-                    self.remove(site)
+                group=self[i]
+                scatterRemovePoints(s2,[iidx for iidx, pt in enumerate(s2.points()) if pt.data()==group])
+                group.removePuffs(puffs)
+                if len(group.puffs)==0:
+                    self.remove(group)
                 else:
-                    scatterAddPoints(s2,[site.pos],[site])
-                    #self.puffAnalyzer.s2.addPoints(pos=[site.pos],data=site)
+                    scatterAddPoints(s2,[group.pos],[group])
+                    #self.puffAnalyzer.s2.addPoints(pos=[group.pos],data=group)
             
-class Site(object):
+class Group(object):
     def __init__(self,puffs):
         self.puffs=puffs
         self.pos=self.getPos()
@@ -1244,7 +1245,7 @@ class Puff:
         x1=self.originalbounds[1][1]+self.udc['paddingXY']
         y0=self.originalbounds[0][2]-self.udc['paddingXY']
         y1=self.originalbounds[1][2]+self.udc['paddingXY']
-        mt,mx,my=self.puffs.highpass_window.image.shape
+        mt,mx,my=self.puffs.data_window.image.shape
         if t0<0: t0=0
         if y0<0: y0=0
         if x0<0: x0=0
@@ -1489,21 +1490,21 @@ class Puff:
             self.puffs.puffAnalyzer.drawRedOverlay()
     
     
-class SiteAnalyzer(QWidget):
+class GroupAnalyzer(QWidget):
     sigTimeChanged=Signal(int)
-    def __init__(self,site,parent=None):
-        super(SiteAnalyzer,self).__init__(parent) ## Create window with ImageView widget
+    def __init__(self,group,parent=None):
+        super(GroupAnalyzer,self).__init__(parent) ## Create window with ImageView widget
         #self=QWidget()
-        self.site=site
-        nPuffs=len(self.site.puffs)
-        self.offsets=[puff.kinetics['t_start'] for puff in self.site.puffs]
+        self.group=group
+        nPuffs=len(self.group.puffs)
+        self.offsets=[puff.kinetics['t_start'] for puff in self.group.puffs]
         
         cmap=matplotlib.cm.gist_rainbow
         self.colors=[cmap(int(i*255./nPuffs)) for i in np.arange(nPuffs)]
         self.colors=[tuple([int(c*255) for c in col]) for col in self.colors]
 
         self.setGeometry(QRect(1065, 121, 749, 948))
-        self.setWindowTitle('Site Analyzer')
+        self.setWindowTitle('Group Analyzer')
         
         
         self.hbox=QGridLayout()
@@ -1545,7 +1546,7 @@ class SiteAnalyzer(QWidget):
         self.table=pg.TableWidget()
         self.d9.addWidget(self.table)
         self.formlayout=QFormLayout()
-        self.puffCheckBoxes=[QCheckBox() for puff in site.puffs]
+        self.puffCheckBoxes=[QCheckBox() for puff in group.puffs]
         for i in np.arange(nPuffs):
             self.puffCheckBoxes[i].setChecked(True)
             self.puffCheckBoxes[i].stateChanged.connect(self.replot)
@@ -1564,13 +1565,13 @@ class SiteAnalyzer(QWidget):
         self.formWidget.setLayout(self.formlayout)
         self.d2.addWidget(self.formWidget)
         self.imageview=pg.ImageView()
-        puff=self.site.puffs[self.currentPuff.currentIndex()]
+        puff=self.group.puffs[self.currentPuff.currentIndex()]
         self.bounds=np.copy(puff.bounds)
         self.bounds[0,0]=puff.kinetics['before']
         self.bounds[0,1]=puff.kinetics['after']
         
         bb=self.bounds
-        self.I=self.site.puffs[0].puffs.highpass_window.image[bb[0][0]:bb[0][1]+1,bb[1][0]:bb[1][1]+1,bb[2][0]:bb[2][1]+1]
+        self.I=self.group.puffs[0].puffs.highpass_window.image[bb[0][0]:bb[0][1]+1,bb[1][0]:bb[1][1]+1,bb[2][0]:bb[2][1]+1]
         
         self.imageview.setImage(self.I)
         self.addedItems=[]
@@ -1579,7 +1580,7 @@ class SiteAnalyzer(QWidget):
         self.d3.addWidget(self.imageview)
         self.params=[]
         self.I_fits=[]
-        for puff in self.site.puffs:
+        for puff in self.group.puffs:
             param, I_fit=self.getParamsOverTime(puff)
             self.params.append(param)
             self.I_fits.append(I_fit)
@@ -1590,7 +1591,7 @@ class SiteAnalyzer(QWidget):
         self.show()
     def updatePuffTable(self):
         idx=self.currentPuff.currentIndex()
-        puff=self.site.puffs[idx]
+        puff=self.group.puffs[idx]
         dt=-(puff.kinetics['t_start']-puff.kinetics['before'])
         
         params=self.params[idx]
@@ -1627,14 +1628,14 @@ class SiteAnalyzer(QWidget):
         self.error_bars=[]
         for p in [self.p1,self.p2,self.p3,self.p4,self.p5]:
             p.clear()
-        currentPuff=self.site.puffs[self.currentPuff.currentIndex()]
+        currentPuff=self.group.puffs[self.currentPuff.currentIndex()]
         x=-(currentPuff.kinetics['t_start']-currentPuff.kinetics['before'])
         self.vLine1=self.p1.addLine(x=x,pen=pg.mkPen('y'))
         self.vLine2=self.p2.addLine(x=x,pen=pg.mkPen('y'))
         #self.vLine3=self.p3.addLine(x=x,pen=pg.mkPen('y'))
         ##self.vLine4=self.p4.addLine(x=x,pen=pg.mkPen('y'))
         self.vLine5=self.p5.addLine(x=x,pen=pg.mkPen('y'))
-        for i,puff in enumerate(self.site.puffs):
+        for i,puff in enumerate(self.group.puffs):
             if self.puffCheckBoxes[i].isChecked():
                 pen=pg.mkPen(pg.mkColor(self.colors[i]))
                 x=np.arange(len(puff.trace))+puff.kinetics['before']-self.offsets[i]
@@ -1703,15 +1704,15 @@ class SiteAnalyzer(QWidget):
         
     def changeCurrentPuff(self):
         idx=self.currentPuff.currentIndex()
-        puff=self.site.puffs[idx]
+        puff=self.group.puffs[idx]
         self.bounds=np.copy(puff.bounds)
         self.bounds[0,0]=puff.kinetics['before']
         self.bounds[0,1]=puff.kinetics['after']
         bb=self.bounds
-        self.I=self.site.puffs[idx].puffs.highpass_window.image[bb[0][0]:bb[0][1]+1,bb[1][0]:bb[1][1]+1,bb[2][0]:bb[2][1]+1]
+        self.I=self.group.puffs[idx].puffs.highpass_window.image[bb[0][0]:bb[0][1]+1,bb[1][0]:bb[1][1]+1,bb[2][0]:bb[2][1]+1]
         self.imageview.setImage(self.I)
         self.updatePuffTable()
-        #self.params=[self.getParamsOverTime(puff) for puff in self.site.puffs]
+        #self.params=[self.getParamsOverTime(puff) for puff in self.group.puffs]
         self.updateTime(0)
 
     def updateTime(self,frame):
@@ -1719,7 +1720,7 @@ class SiteAnalyzer(QWidget):
             return
         self.previousframe=frame
         idx=self.currentPuff.currentIndex()
-        currentPuff=self.site.puffs[idx]
+        currentPuff=self.group.puffs[idx]
 
         image1=np.copy(self.I[frame])
         mmax=np.max(self.I)
@@ -1742,15 +1743,15 @@ class SiteAnalyzer(QWidget):
         self.imageview.view.addItem(scatter)
         self.addedItems.append(scatter)
         spots=[]
-        for i in np.arange(len(self.site.puffs)):
-            rel_frame2=frame-((currentPuff.kinetics['t_start']-currentPuff.kinetics['before'])-(self.site.puffs[i].kinetics['t_start']-self.site.puffs[i].kinetics['before']))
+        for i in np.arange(len(self.group.puffs)):
+            rel_frame2=frame-((currentPuff.kinetics['t_start']-currentPuff.kinetics['before'])-(self.group.puffs[i].kinetics['t_start']-self.group.puffs[i].kinetics['before']))
             if self.puffCheckBoxes[i].isChecked() and rel_frame2>=0 and rel_frame2<self.params[i].shape[0]:
                 centers=self.params[i][:,:2]-self.bounds[1:,0]
                 center=centers[rel_frame2,:]
                 amps=np.copy(self.params[i][:,-1])
                 amps[amps<=0]=.00000001
                 amp=amps[rel_frame2]
-                std=self.site.puffs[0].clusters.standard_deviations[i]
+                std=self.group.puffs[0].clusters.standard_deviations[i]
                 color=np.array(self.colors[i])
                 color[3]=50
                 ### FIRST ADD THE POINT TO THE SCATTER PLOT
@@ -2026,6 +2027,6 @@ class PersistentInfo:
                          'gaussianFit':puff.gaussianFit,
                          'color':puff.color,
                          'trashed':True}  for puff in puffAnalyzer.trash})
-        self.sites=[[puff.starting_idx for puff in site.puffs] for site in puffAnalyzer.sites]
+        self.groups=[[puff.starting_idx for puff in group.puffs] for group in puffAnalyzer.groups]
         self.udc=puffAnalyzer.udc
         self.movieShape=puffAnalyzer.clusters.movieShape
