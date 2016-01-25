@@ -19,6 +19,7 @@ from .gaussianFitting import fitGaussian, fitRotGaussian
 from .densities import getDensities
 from .higher_pts import getHigherPoints
 from process.filters import butterworth_filter
+from process.math_ import subtract, ratio
 from scipy.signal import filtfilt
 import pyqtgraph.opengl as gl
 from roi import ROI_rectangle, makeROI
@@ -29,11 +30,13 @@ from scipy import spatial
 import matplotlib
 from pyqtgraph.dockarea import *
 from window import Window
+from process.file_ import open_file_gui, open_file
 if sys.version_info.major==2:
     import cPickle as pickle # pickle serializes python objects so they can be saved persistantly.  It converts a python object into a savable data structure
 else:
     import pickle
 import bz2
+import ntpath
 
 
 class OddSlider(SliderLabel):
@@ -51,6 +54,32 @@ class OddSlider(SliderLabel):
         if value%2==0:
             value-=1
         self.label.setValue(value)
+        
+def load_flika_file_gui():
+    open_file_gui(load_flika_file, '*.flika', prompt='Open .flika file')
+    
+def load_flika_file(filename=None):
+    print('loading ... {}'.format(filename))
+    with bz2.BZ2File(filename, 'rb') as f:
+        persistentInfo=pickle.load(f)
+    data_path=os.path.dirname(filename)
+    data_filename=ntpath.basename(os.path.splitext(filename)[0])
+    data_filename=[name for name in os.listdir(data_path) if data_filename==os.path.splitext(name)[0] and os.path.splitext(name)[1] in ['.tif', '.stk', '.tiff']][0]
+    raw_data_window=open_file(os.path.join(data_path,data_filename))
+    
+    if hasattr(persistentInfo,'data_window_commands'):
+        commands=persistentInfo.data_window_commands
+        for command in commands[1:]:
+            exec(command)
+        data_window=g.m.currentWindow
+        data_window.setName('Data Window (F/F0)')
+    else:
+        data_window=raw_data_window
+        data_window.setName('Data Window (raw)')
+    puffAnalyzer=PuffAnalyzer(data_window,None,None,None,persistentInfo)
+    g.m.windows.append(puffAnalyzer)
+    
+    
         
 class Threshold_cluster(BaseProcess):
     '''threshold_cluster(binary_window, data_window, highpass_window, roi_width, paddingXY, paddingT_pre, paddingT_post, maxSigmaForGaussianFit, rotatedfit)
@@ -209,13 +238,18 @@ class PuffAnalyzer(QWidget):
             else:
                 self.Densities=None
             getDensities_wrapper(self) #getDensities calls setupUI after it is finished
+
     
     def loadPersistentInfo(self,persistentInfo):
         self.udc=persistentInfo.udc
         self.clusters=Clusters(None,None,None,self,persistentInfo)
         self.groups=Groups(self)
-        for i in np.arange(len(persistentInfo.groups)):
-            self.groups.append(Group([puff for puff in g.m.puffAnalyzer.puffs.puffs if puff.starting_idx in persistentInfo.groups[i]]))
+        if hasattr(persistentInfo,'groups'):
+            for i in np.arange(len(persistentInfo.groups)):
+                self.groups.append(Group([puff for puff in g.m.puffAnalyzer.puffs.puffs if puff.starting_idx in persistentInfo.groups[i]]))
+        else: # 'groups' used to be named 'sites'.  This is for legacy .flika files.
+            for i in np.arange(len(persistentInfo.sites)):
+                self.groups.append(Group([puff for puff in g.m.puffAnalyzer.puffs.puffs if puff.starting_idx in persistentInfo.sites[i]]))
         self.trash=Trash(self)
         for i in np.arange(len(persistentInfo.puffs)):
             if persistentInfo.puffs[i]['trashed']:
@@ -315,11 +349,27 @@ class PuffAnalyzer(QWidget):
             y=puff.kinetics['y']
             self.s1.addPoints(pos=[[x,y]],data=puff, brush=pg.mkBrush(puff.color),pen=pg.mkPen([0,0,0,255]))
         self.s1.sigClicked.connect(self.clicked)
-        self.s2=pg.ScatterPlotItem(size=5,  brush=pg.mkBrush(0, 255, 0, 255),pen=pg.mkPen([0,0,0,255])) #GROUPS
-        self.s2.sigClicked.connect(self.clickedGroup)
-        self.s2.addPoints(pos=[group.pos for group in self.groups],data=self.groups)
-        self.s3=pg.ScatterPlotItem(size=5,  brush=pg.mkBrush(0, 255, 255, 255),pen=pg.mkPen([0,0,0,255])) #TRASH
-        self.s3.sigClicked.connect(self.clickedTrash)
+
+        def create_s2():
+            '''I had to add these functions because pyqt was deleting them when the didn't have a parent.'''
+            self.s2=pg.ScatterPlotItem(size=5,  brush=pg.mkBrush(0, 255, 0, 255),pen=pg.mkPen([0,0,0,255])) #GROUPS
+            self.s2.sigClicked.connect(self.clickedGroup)
+            self.s2.addPoints(pos=[group.pos for group in self.groups],data=self.groups)
+            self.s2.destroyed.connect(create_s2)
+        def create_s3():
+            '''I had to add these functions because pyqt was deleting them when the didn't have a parent.'''
+            self.s3=pg.ScatterPlotItem(size=5,  brush=pg.mkBrush(0, 255, 255, 255),pen=pg.mkPen([0,0,0,255])) #TRASH
+            self.s3.sigClicked.connect(self.clickedTrash)
+            for puff in self.trash:
+                x=puff.kinetics['x']
+                y=puff.kinetics['y']
+                self.s3.addPoints(pos=[[x,y]],data=puff)
+            self.s3.destroyed.connect(create_s3)
+        create_s2()
+        create_s3()
+        
+        
+        
         self.s4=pg.ScatterPlotItem(size=10, brush=pg.mkBrush(255, 255, 255, 120),pen=pg.mkPen([0,0,0,255]))
         view = pg.GraphicsLayoutWidget()
         self.d4.addWidget(view)
@@ -331,11 +381,6 @@ class PuffAnalyzer(QWidget):
         self.lastClickedScatterPt = []
         self.s4.sigClicked.connect(self.clickedScatter)
         
-
-        for puff in self.trash:
-            x=puff.kinetics['x']
-            y=puff.kinetics['y']
-            self.s3.addPoints(pos=[[x,y]],data=puff)
         self.groupAnalyzer=None
         self.lastClicked = None
         self.linkTif()
@@ -477,6 +522,7 @@ class PuffAnalyzer(QWidget):
         event.accept() # let the window close
     def close(self):
         if self.roi in self.data_window.rois:
+            self.data_window.closeSignal.disconnect(self.roi.delete)
             self.roi.delete()
         del self.roi
         if g.m.currentTrace is not None:
@@ -485,16 +531,20 @@ class PuffAnalyzer(QWidget):
             g.m.currentTrace.finishedDrawingSignal.disconnect(self.drawRedOverlay)
             g.m.currentTrace.p1.scene().sigMouseClicked.disconnect(self.clickedTrace)
             g.m.currentTrace.keyPressSignal.disconnect(self.keyPressEvent)
+            
+            
         self.data_window.keyPressSignal.disconnect(self.keyPressEvent)
-        self.data_window.sigTimeChanged.disconnect(self.updateTime) 
-        self.data_window.imageview.view.removeItem(self.clusterItem)
-        if self.data_window in g.m.windows:
-            if self.groupsVisible:
-                self.data_window.imageview.removeItem(self.s2)
-            if self.puffsVisible:
-                self.data_window.imageview.removeItem(self.s1)
-        else:
-            del self.data_window
+        if not self.data_window.closed:
+            
+            self.data_window.sigTimeChanged.disconnect(self.updateTime) 
+            self.data_window.imageview.view.removeItem(self.clusterItem)
+            if self.data_window in g.m.windows:
+                if self.groupsVisible:
+                    self.data_window.imageview.removeItem(self.s2)
+                if self.puffsVisible:
+                    self.data_window.imageview.removeItem(self.s1)
+            else:
+                del self.data_window
         if self in g.m.windows:
             g.m.windows.remove(self)
         
@@ -596,7 +646,7 @@ class PuffAnalyzer(QWidget):
         self.trace_plot.plotItem.autoRange()
         
         rgnbounds=np.array(g.m.currentTrace.region.getRegion())
-        rgnbounds+=puff.kinetics['t_peak']-np.mean(rgnbounds)
+        rgnbounds+=puff.kinetics['t_peak']-int(np.mean(rgnbounds))
         g.m.currentTrace.region.setRegion(tuple(rgnbounds))
 #        
         if self.lastClicked is not None:
@@ -993,6 +1043,7 @@ class Trash(list):
         for puff in puffs:
             if puff in self:
                 self.remove(puff)
+        print('removing puffs, replacing trash scatterplot')
         s=self.puffAnalyzer.s3
         idxs=[]
         for puff in puffs:
@@ -1232,7 +1283,7 @@ class Puffs:
         
 class Puff:
     def __init__(self,starting_idx,clusters,puffs,persistentInfo=None):
-        print('Calculating parameters for puff {}/{}'.format(starting_idx, len(clusters.clusters)-1))
+        print('Creating event {}/{}'.format(starting_idx, len(clusters.clusters)-1))
         self.starting_idx=starting_idx
         self.clusters=clusters
         self.puffs=puffs
@@ -2030,3 +2081,4 @@ class PersistentInfo:
         self.groups=[[puff.starting_idx for puff in group.puffs] for group in puffAnalyzer.groups]
         self.udc=puffAnalyzer.udc
         self.movieShape=puffAnalyzer.clusters.movieShape
+        self.data_window_commands=puffAnalyzer.data_window.commands

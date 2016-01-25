@@ -38,6 +38,7 @@ def getDensities(Image,maxPuffLen, maxPuffDiameter):
     progress = ProgressBar(calcDensity, data_blocks, args, nCores, msg='Calculating Density')
     if progress.results is None or any(r is None for r in progress.results):
         result=None
+        return result
     else:
         result=np.sum(progress.results,0)
     result=np.log(result+1)
