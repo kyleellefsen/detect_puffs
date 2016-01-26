@@ -174,7 +174,7 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="How-to-detect-subcellular-Ca2+-signals-using-Flika">How to detect subcellular Ca<sup>2+</sup> signals using Flika<a class="anchor-link" href="#How-to-detect-subcellular-Ca2+-signals-using-Flika">&#182;</a></h1><p>by Kyle Ellefsen, October 31, 2015</p>
+<h1 id="How-to-detect-subcellular-Ca2+-signals-using-Flika">How to detect subcellular Ca<sup>2+</sup> signals using Flika<a class="anchor-link" href="#How-to-detect-subcellular-Ca2+-signals-using-Flika">&#182;</a></h1><p>by Kyle Ellefsen, January 24, 2016</p>
 
 </div>
 </div>
@@ -235,7 +235,7 @@ div#notebook {
 <div class="prompt input_prompt">In&nbsp;[&nbsp;]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython2"><pre><span class="n">subtract</span><span class="p">(</span><span class="mi">720</span><span class="p">)</span>
+<div class=" highlight hl-ipython2"><pre><span class="n">subtract</span><span class="p">(</span><span class="mi">120</span><span class="p">)</span>
 </pre></div>
 
 </div>
@@ -436,6 +436,23 @@ One arrow stands out.  One pixel near the center of the cluster has the highest 
 <p><img src="images/gaussian_fitting.PNG" alt="Gaussian Fitting"></p>
 <p>If you click on the red outline of the event in the trace window, or if you click on the centroid in the $F/F_0$ window, the Puff Analyzer dialog will display the trace for that signal.  The trace is created by averaging the values of the pixels in a square centered around the centroid of the gaussian fit.  The width of the square is specified by the user (the parameter 'roi_width').  The yellow vertical lines denote the frames of the first and last pixel in the cluster.  The lower horizontal line is the amplitude of the trace at the first frame.  The horizontal line is the maximum amplitude of the trace.  The vertical lines can be adjusted by clicking and dragging.  Once adjusted, all the kinetics are recalculated for that event.  All these values are in terms of $F/F_0$, and all of them are saved in the excel spreadsheet when you press the button "Export to Excel".</p>
 <p><img src="images/puff_trace.PNG" alt="Event Trace"></p>
+<p>Here are a few of the things you can do to explore your data:</p>
+<ul>
+<li><p>Right click and drag inside the ROI to move it around.  Drag near a corner to change its size.</p>
+</li>
+<li><p>Delete all events in the ROI by pressing the delete button when your mouse is inside the ROI.</p>
+</li>
+<li><p>Delete a single puff by pressing the delete button when that puff is selected and your mouse is outside the ROI.</p>
+</li>
+<li><p>Group all the events in the ROI by pressing the 'g' button.</p>
+</li>
+<li><p>Ungroup by pressing the 'u' button.</p>
+</li>
+<li><p>To link views between the data window and any other window (such as the normalized window), right click on the ROI and select 'copy'. Then right click on the normalized window and select 'paste'. Then right click on the new ROI and select 'plot'. A line will appear that will plot the average inside that ROI for the normalized window.</p>
+</li>
+<li><p>Press the 'toggle groups' button to view the green group dots.  Click on one of these dots to bring up the group analyzer window.</p>
+</li>
+</ul>
 
 </div>
 </div>

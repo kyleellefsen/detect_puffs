@@ -55,6 +55,10 @@ class OddSlider(SliderLabel):
             value-=1
         self.label.setValue(value)
         
+def launch_docs():
+    url='https://github.com/kyleellefsen/detect_puffs'
+    QDesktopServices.openUrl(QUrl(url))
+        
 def load_flika_file_gui():
     open_file_gui(load_flika_file, '*.flika', prompt='Open .flika file')
     

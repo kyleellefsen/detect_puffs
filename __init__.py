@@ -12,5 +12,6 @@ dependencies = ['skimage', 'leastsqbound', 'matplotlib','PyOpenGL']
 menu_layout = {'Detect Puffs': \
 				{'Threshold Cluster': ['threshold_cluster', 'threshold_cluster.gui'],
 				'Simulate Puffs': ['puff_simulator.puff_simulator', 'simulate_puffs.gui'],
-                        'Load .flika file': ['threshold_cluster', 'load_flika_file_gui']}
+                        'Load .flika file': ['threshold_cluster', 'load_flika_file_gui'],
+                        'Docs': ['threshold_cluster', 'launch_docs']}
 				}
