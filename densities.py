@@ -6,7 +6,8 @@ Created on Mon Jan 04 14:33:51 2016
 """
 from process.progress_bar import ProgressBar
 import numpy as np
-from multiprocessing import cpu_count
+import global_vars as g
+
 
 
 
@@ -30,7 +31,7 @@ def getDensities(Image,maxPuffLen, maxPuffDiameter):
         maxPuffLen+=1
     if maxPuffDiameter%2==0:
         maxPuffDiameter+=1
-    nCores = cpu_count()
+    nCores = g.m.settings['nCores']
     pxls=np.array(np.where(Image)).T
     block_ends=np.linspace(0,len(pxls),nCores+1).astype(np.int)
     data_blocks=[pxls[block_ends[i]:block_ends[i+1]] for i in np.arange(nCores)]

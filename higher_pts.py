@@ -7,7 +7,7 @@ Created on Mon Jan 04 15:17:57 2016
 from __future__ import division
 from process.progress_bar import ProgressBar
 import numpy as np
-from multiprocessing import cpu_count
+import global_vars as g
 from scipy import spatial
 
 def getMask(nt=5,nx=5,ny=5):
@@ -28,7 +28,7 @@ def getHigherPoints(Densities,density_thresh, time_factor):
     ['Distance to next highest point, index of higher point, value of current point']
     """
     
-    nCores = cpu_count()
+    nCores = g.m.settings['nCores']
     idxs=np.where(Densities>density_thresh)
     densities=Densities[idxs]
     densities_jittered=densities+np.arange(len(densities))/(2*np.float(len(densities))) #I do this so no two densities are the same, so each cluster has a peak.
