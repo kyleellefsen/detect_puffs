@@ -26,7 +26,58 @@ def getMask(nt=5,nx=5,ny=5):
 ###############################################################################
 #                    Density
 ###############################################################################
+
+def getDensities_singleCore(Image,maxPuffLen, maxPuffDiameter):
+    mt,mx,my=Image.shape
+    if maxPuffLen%2==0:
+        maxPuffLen+=1
+    if maxPuffDiameter%2==0:
+        maxPuffDiameter+=1
+    mask, center = getMask(maxPuffLen,maxPuffDiameter,maxPuffDiameter)
+    result=np.zeros(Image.shape)
+    pxls=np.array(np.where(Image)).T
+    percent=0
+    for i,pxl in enumerate(pxls):
+        if percent<int(100*i/len(pxls)):
+            percent=int(100*i/len(pxls))
+            print('Calculating Densities  {}%'.format(percent))
+        t,x,y=pxl
+        try:
+            result[t,x,y]=np.count_nonzero(mask*Image[t-center[0]:t+center[0]+1,x-center[1]:x+center[1]+1,y-center[2]:y+center[2]+1])
+        except ValueError:
+            t0=t-center[0]
+            tf=t+center[0]+1
+            x0=x-center[1]
+            xf=x+center[1]+1
+            y0=y-center[2]
+            yf=y+center[2]+1
+            mask2=mask
+            if t0<0:
+                mask2=mask2[center[0]-t:,:,:]
+                t0=0
+            if x0<0:
+                mask2=mask2[:,center[1]-x:,:]
+                x0=0
+            if y0<0:
+                mask2=mask2[:,:,center[2]-y:]
+                y0=0
+            if tf>mt-1:
+                mask2=mask2[:-(tf-mt+1),:,:]
+                tf=mt-1
+            if xf>mx-1:
+                mask2=mask2[:,:-(xf-mx+1),:]
+                xf=mx-1
+            if yf>my-1:
+                mask2=mask2[:,:,:-(yf-my+1)]
+                yf=my-1
+            result[t,x,y]=np.count_nonzero(mask2*Image[t0:tf,x0:xf,y0:yf])
+    result=np.log(result+1)
+    return result
+    
+    
 def getDensities(Image,maxPuffLen, maxPuffDiameter):
+    if g.m.settings['multiprocessing']==False:
+        return getDensities_singleCore(Image,maxPuffLen, maxPuffDiameter)
     if maxPuffLen%2==0:
         maxPuffLen+=1
     if maxPuffDiameter%2==0:
@@ -45,6 +96,7 @@ def getDensities(Image,maxPuffLen, maxPuffDiameter):
     result=np.log(result+1)
     Densities=result
     return Densities
+    
     
 def calcDensity(q_results, q_progress, q_status, child_conn, args):
     pxls=child_conn.recv() # unfortunately this step takes a long time
