@@ -43,12 +43,8 @@ def getHigherPoints(Densities,density_thresh, time_factor):
     block_ends=np.linspace(0,len(remander),nCores+1).astype(np.int)
     data_blocks=[remander[block_ends[i]:block_ends[i+1]] for i in np.arange(nCores)]
     
-    
-    
-    
-    
-    method=1
-    if method==1:
+
+    if g.m.settings['multiprocessing']:
         # create the ProgressBar object
         args=(nTotal_pts, C, idxs, densities_jittered, C_idx, time_factor)
         progress = ProgressBar(getHigherPoint, data_blocks, args, nCores, msg='Getting Higher Points')
@@ -56,14 +52,10 @@ def getHigherPoints(Densities,density_thresh, time_factor):
             higher_pts=None
         else:
             higher_pts=np.sum(progress.results,0)
-    elif method==2:
+    else:
         args=(nTotal_pts, C, idxs, densities_jittered, C_idx, time_factor)
         remander=np.arange(len(idxs))
         higher_pts=getHigherPointSingleProcess(args,remander)
-    elif method==3:
-        higher_pts=np.zeros((nTotal_pts,3)) #['Distance to next highest point, index of higher point, value of current point']
-        
-        
         
         
     mt,mx,my=Densities.shape
