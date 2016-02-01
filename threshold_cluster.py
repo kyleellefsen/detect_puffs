@@ -19,6 +19,7 @@ from .gaussianFitting import fitGaussian, fitRotGaussian
 from .densities import getDensities
 from .higher_pts import getHigherPoints
 from process.filters import butterworth_filter
+from process.stacks import deinterleave, trim, zproject, image_calculator, pixel_binning, frame_binning, resize
 from process.math_ import subtract, ratio
 from scipy.signal import filtfilt
 import pyqtgraph.opengl as gl
@@ -68,7 +69,12 @@ def load_flika_file(filename=None):
         persistentInfo=pickle.load(f)
     data_path=os.path.dirname(filename)
     data_filename=ntpath.basename(os.path.splitext(filename)[0])
-    data_filename=[name for name in os.listdir(data_path) if data_filename==os.path.splitext(name)[0] and os.path.splitext(name)[1] in ['.tif', '.stk', '.tiff']][0]
+    data_filename_matching=[name for name in os.listdir(data_path) if data_filename==os.path.splitext(name)[0] and os.path.splitext(name)[1] in ['.tif', '.stk', '.tiff']]
+    if len(data_filename_matching)==0:
+        msg='To load the .flika file, your original data file must be in the same directory and named with the same name as your flika file.  Original file not found'
+        g.m.statusBar().showMessage(msg); print(msg)
+        return None
+    data_filename=data_filename_matching[0]
     raw_data_window=open_file(os.path.join(data_path,data_filename))
     
     if hasattr(persistentInfo,'data_window_commands'):
