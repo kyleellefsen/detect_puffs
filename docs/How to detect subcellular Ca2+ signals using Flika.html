@@ -187,6 +187,7 @@ div#notebook {
 <p>This tutorial is relevant for researchers who record subcellular Ca<sup>2+</sup> signals using fluorescent Ca<sup>2+</sup> indicators.  This algorithm automates the detection and analysis of these brief Ca2+ signals.  This is not a tutorial for researchers looking to analyze global Ca<sup>2+</sup> signals, although I'm planning on creating a tutorial for that, and many of the same concepts apply.</p>
 <p>In this problem, we will use the threshold-cluster algorithm.  This algorithm is not published, but is modified from the algorithm published in <a href="http://dx.doi.org/10.1016/j.ceca.2014.06.003">Ellefsen et al, 2014</a>.  When using this algorithm, please cite that paper.  The threshold-cluster algorithm can be conceptually divided into two steps.  The first step preprocesses the raw movie and creates three movies.  The second step performs analysis on those movies according to user defined parameters.  I'll break this tutorial into those two steps.</p>
 <p>Using this algorithm involves reading and writing code.  Although this algorithm can all be done using Flika's GUI tools (opening windows, clicking buttons, etc.), it is much more efficient for a researcher to write a python file that will automatically perform all these operations.  Therefore, in this tutorial, I will be describing the code you'll need to use in each step.  If you do not know how to code in python, I recommend downloading <a href="https://www.continuum.io/downloads">anaconda</a>, which contains python and many python packages.  Then launch <a href="https://github.com/spyder-ide/spyder">Spyder</a> (which comes with anaconda), and from within Spyder, run <a href="https://github.com/kyleellefsen/Flika">Flika.py</a>.  All these commands will be executed in the same console that Flika.py is running in. If you have questions about how to do that, email me and I'll help you with setting up.</p>
+<p><img src="images/flowchart.PNG" alt="step flowchart"></p>
 
 </div>
 </div>
@@ -196,7 +197,7 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Preprocessing">Preprocessing<a class="anchor-link" href="#Preprocessing">&#182;</a></h2><p>There are three movies we want to generate as part of the preprocessing step.</p>
+<h2 id="1.-Preprocessing">1. Preprocessing<a class="anchor-link" href="#1.-Preprocessing">&#182;</a></h2><p>There are three movies we want to generate as part of the preprocessing step.</p>
 <ol>
 <li>$F/F_0$ Movie</li>
 <li>Normalized Movie</li>
@@ -392,7 +393,7 @@ div#notebook {
 </div>
 <div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="Clustering">Clustering<a class="anchor-link" href="#Clustering">&#182;</a></h2><p>The second half of the algorithm requires only those three movies we created earlier:</p>
+<h2 id="2.-Clustering">2. Clustering<a class="anchor-link" href="#2.-Clustering">&#182;</a></h2><p>The second half of the algorithm requires only those three movies we created earlier:</p>
 <ol>
 <li>$F/F_0$ Movie</li>
 <li>Normalized Movie</li>
