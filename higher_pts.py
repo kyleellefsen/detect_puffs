@@ -28,7 +28,7 @@ def getHigherPoints(Densities,density_thresh, time_factor):
     ['Distance to next highest point, index of higher point, value of current point']
     """
     
-    nCores = g.m.settings['nCores']
+    nCores = g.settings['nCores']
     idxs=np.where(Densities>density_thresh)
     densities=Densities[idxs]
     densities_jittered=densities+np.arange(len(densities))/(2*np.float(len(densities))) #I do this so no two densities are the same, so each cluster has a peak.
@@ -44,7 +44,7 @@ def getHigherPoints(Densities,density_thresh, time_factor):
     data_blocks=[remander[block_ends[i]:block_ends[i+1]] for i in np.arange(nCores)]
     
 
-    if g.m.settings['multiprocessing']:
+    if g.settings['multiprocessing']:
         # create the ProgressBar object
         args=(nTotal_pts, C, idxs, densities_jittered, C_idx, time_factor)
         progress = ProgressBar(getHigherPoint, data_blocks, args, nCores, msg='Getting Higher Points')

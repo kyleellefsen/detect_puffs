@@ -76,13 +76,13 @@ def getDensities_singleCore(Image,maxPuffLen, maxPuffDiameter):
     
     
 def getDensities(Image,maxPuffLen, maxPuffDiameter):
-    if g.m.settings['multiprocessing']==False:
+    if g.settings['multiprocessing']==False:
         return getDensities_singleCore(Image,maxPuffLen, maxPuffDiameter)
     if maxPuffLen%2==0:
         maxPuffLen+=1
     if maxPuffDiameter%2==0:
         maxPuffDiameter+=1
-    nCores = g.m.settings['nCores']
+    nCores = g.settings['nCores']
     pxls=np.array(np.where(Image)).T
     block_ends=np.linspace(0,len(pxls),nCores+1).astype(np.int)
     data_blocks=[pxls[block_ends[i]:block_ends[i+1]] for i in np.arange(nCores)]

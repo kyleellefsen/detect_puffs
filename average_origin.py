@@ -69,8 +69,8 @@ class Average_origin(BaseProcess):
         radius.setRange(.01,10)
         radius.setSingleStep(.1)
         radius.setValue(np.sqrt(2))
-        if 'average_origin_settings' in g.m.settings.d.keys():
-            varDict=g.m.settings['average_origin_settings']
+        if 'average_origin_settings' in g.settings.d.keys():
+            varDict=g.settings['average_origin_settings']
             for key in varDict.keys():
                 eval(key+'.setValue('+str(varDict[key])+')')
         self.items.append({'name':'binary_window','string':'Binary window containing puffs','object':binary_window})
@@ -110,7 +110,7 @@ class Average_origin(BaseProcess):
         varDict={}
         for name in varnames:
             varDict[name]=eval(name)
-        g.m.settings['average_origin_settings']=varDict
+        g.settings['average_origin_settings']=varDict
         return puffAnalyzer
 
 average_origin=Average_origin()
@@ -418,7 +418,7 @@ class PuffAnalyzer(QWidget):
         print('yay')
             
     def export_gui(self):
-        filename=g.m.settings['filename']
+        filename=g.settings['filename']
         directory=os.path.dirname(filename)
         if filename is not None:
             filename= QFileDialog.getSaveFileName(g.m, 'Export Puff Info', directory, '*.xlsx')

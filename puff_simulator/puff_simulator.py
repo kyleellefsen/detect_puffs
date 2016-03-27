@@ -163,7 +163,7 @@ def generatePuffImage(nFrames=10000,puffAmplitude=5,nPuffs=10):
     return A, puffs
     
 def detect_simulated_puffs():
-    tmpdir=os.path.join(os.path.dirname(g.m.settings.config_file),'tmp')
+    tmpdir=os.path.join(os.path.dirname(g.settings.config_file),'tmp')
     flika_fn='simulated_puffs.flika'
     if os.path.isdir(tmpdir):
         if flika_fn in os.listdir(tmpdir):
@@ -270,7 +270,7 @@ def generateBlipImage(amplitude=1):
     return Window(A)
 
 def detect_simulated_blips(amplitude=1):
-    tmpdir=os.path.join(os.path.dirname(g.m.settings.config_file),'tmp')
+    tmpdir=os.path.join(os.path.dirname(g.settings.config_file),'tmp')
     flika_fn='simulated_blips.flika'
     if os.path.isdir(tmpdir):
         if flika_fn in os.listdir(tmpdir):

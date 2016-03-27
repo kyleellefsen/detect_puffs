@@ -154,8 +154,8 @@ class Threshold_cluster(BaseProcess):
         load_flika_file.setChecked(True)
         
         
-        if 'threshold_cluster_settings' in g.m.settings.d.keys():
-            varDict=g.m.settings['threshold_cluster_settings']
+        if 'threshold_cluster_settings' in g.settings.d.keys():
+            varDict=g.settings['threshold_cluster_settings']
             for key in varDict.keys():
                 eval(key+'.setValue('+str(varDict[key])+')')
         self.items.append({'name':'binary_window','string':'Binary window containing puffs','object':binary_window})
@@ -208,8 +208,8 @@ class Threshold_cluster(BaseProcess):
             udc['maxPuffLen']=maxPuffLen
             udc['maxPuffDiameter']=maxPuffDiameter
             if density_threshold is None:
-                if 'threshold_cluster_settings' in g.m.settings.d.keys():
-                    density_threshold=g.m.settings['threshold_cluster_settings']['density_threshold']
+                if 'threshold_cluster_settings' in g.settings.d.keys():
+                    density_threshold=g.settings['threshold_cluster_settings']['density_threshold']
                 else:
                     density_threshold=2.7
             udc['density_threshold']=density_threshold
@@ -272,8 +272,8 @@ class PuffAnalyzer(QWidget):
         self.groups=Groups(self)
         self.trash=Trash(self)
         self.autoGroupEvents(self.udc['radius'])
-        g.m.settings['threshold_cluster_settings']=self.udc
-        g.m.settings.save()
+        g.settings['threshold_cluster_settings']=self.udc
+        g.settings.save()
         self.setupUI()
     def setupUI(self):
         self.setWindowTitle('Puff Analyzer - {}'.format(os.path.basename(self.data_window.name)))
@@ -593,7 +593,7 @@ class PuffAnalyzer(QWidget):
             self.groups.append(Group(pfs))
 
     def compareWithManual(self):
-        filename=g.m.settings['filename']
+        filename=g.settings['filename']
         try:
             directory=os.path.dirname(filename)
         except:
@@ -842,7 +842,7 @@ class PuffAnalyzer(QWidget):
         puff.plot(self.trace_plot)
         
     def export_gui(self):
-        filename=g.m.settings['filename']
+        filename=g.settings['filename']
         directory=os.path.dirname(filename)
         if filename is not None:
             filename= QFileDialog.getSaveFileName(g.m, 'Export Puff Info', directory, '*.xlsx')
