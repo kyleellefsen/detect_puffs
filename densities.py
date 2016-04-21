@@ -27,15 +27,15 @@ def getMask(nt=5,nx=5,ny=5):
 #                    Density
 ###############################################################################
 
-def getDensities_singleCore(Image,maxPuffLen, maxPuffDiameter):
-    mt,mx,my=Image.shape
+def getDensities_singleCore(bin_image,norm_image,maxPuffLen, maxPuffDiameter):
+    mt,mx,my=bin_image.shape
     if maxPuffLen%2==0:
         maxPuffLen+=1
     if maxPuffDiameter%2==0:
         maxPuffDiameter+=1
     mask, center = getMask(maxPuffLen,maxPuffDiameter,maxPuffDiameter)
-    result=np.zeros(Image.shape)
-    pxls=np.array(np.where(Image)).T
+    result=np.zeros(bin_image.shape)
+    pxls=np.array(np.where(bin_image)).T
     percent=0
     for i,pxl in enumerate(pxls):
         if percent<int(100*i/len(pxls)):
@@ -43,7 +43,7 @@ def getDensities_singleCore(Image,maxPuffLen, maxPuffDiameter):
             print('Calculating Densities  {}%'.format(percent))
         t,x,y=pxl
         try:
-            result[t,x,y]=np.count_nonzero(mask*Image[t-center[0]:t+center[0]+1,x-center[1]:x+center[1]+1,y-center[2]:y+center[2]+1])
+            result[t,x,y]=np.count_nonzero(mask*bin_image[t-center[0]:t+center[0]+1,x-center[1]:x+center[1]+1,y-center[2]:y+center[2]+1])
         except ValueError:
             t0=t-center[0]
             tf=t+center[0]+1
@@ -70,23 +70,23 @@ def getDensities_singleCore(Image,maxPuffLen, maxPuffDiameter):
             if yf>my-1:
                 mask2=mask2[:,:,:-(yf-my+1)]
                 yf=my-1
-            result[t,x,y]=np.count_nonzero(mask2*Image[t0:tf,x0:xf,y0:yf])
+            result[t,x,y]=np.count_nonzero(mask2*bin_image[t0:tf,x0:xf,y0:yf])
     result=np.log(result+1)
     return result
     
     
-def getDensities(Image,maxPuffLen, maxPuffDiameter):
+def getDensities(bin_image,norm_image,maxPuffLen, maxPuffDiameter):
     if g.settings['multiprocessing']==False:
-        return getDensities_singleCore(Image,maxPuffLen, maxPuffDiameter)
+        return getDensities_singleCore(bin_image, norm_image, maxPuffLen, maxPuffDiameter)
     if maxPuffLen%2==0:
         maxPuffLen+=1
     if maxPuffDiameter%2==0:
         maxPuffDiameter+=1
     nCores = g.settings['nCores']
-    pxls=np.array(np.where(Image)).T
+    pxls=np.array(np.where(bin_image)).T
     block_ends=np.linspace(0,len(pxls),nCores+1).astype(np.int)
     data_blocks=[pxls[block_ends[i]:block_ends[i+1]] for i in np.arange(nCores)]
-    args=(Image,maxPuffLen, maxPuffDiameter)
+    args=(bin_image, norm_image, maxPuffLen, maxPuffDiameter)
     progress = ProgressBar(calcDensity, data_blocks, args, nCores, msg='Calculating Density')
     if progress.results is None or any(r is None for r in progress.results):
         result=None
@@ -105,14 +105,14 @@ def calcDensity(q_results, q_progress, q_status, child_conn, args):
     if status=='Stop':
         q_results.put(None) # if the user presses stop, return None
     
-    Image, maxPuffLen, maxPuffDiameter=args #unpack all the variables inside the args tuple
-    result=np.zeros(Image.shape)
-    mt,mx,my=Image.shape
+    bin_image, norm_image, maxPuffLen, maxPuffDiameter=args #unpack all the variables inside the args tuple
+    result=np.zeros(bin_image.shape)
+    mt,mx,my=bin_image.shape
     mask, center=getMask(maxPuffLen, maxPuffDiameter, maxPuffDiameter)
     for i,pxl in enumerate(pxls):
         t,x,y=pxl
         try:
-            result[t,x,y]=np.count_nonzero(mask*Image[t-center[0]:t+center[0]+1,x-center[1]:x+center[1]+1,y-center[2]:y+center[2]+1])
+            result[t,x,y]=np.count_nonzero(mask*bin_image[t-center[0]:t+center[0]+1,x-center[1]:x+center[1]+1,y-center[2]:y+center[2]+1])
         except ValueError:
             t0=t-center[0]
             tf=t+center[0]+1
@@ -139,7 +139,7 @@ def calcDensity(q_results, q_progress, q_status, child_conn, args):
             if yf>my-1:
                 mask2=mask2[:,:,:-(yf-my+1)]
                 yf=my-1
-            result[t,x,y]=np.count_nonzero(mask2*Image[t0:tf,x0:xf,y0:yf])
+            result[t,x,y]=np.count_nonzero(mask2*bin_image[t0:tf,x0:xf,y0:yf])
         
         if percent<int(100*i/len(pxls)):
             percent=int(100*i/len(pxls))

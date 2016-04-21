@@ -1077,10 +1077,11 @@ class Point():
         
 def getDensities_wrapper(puffAnalyzer):
     if puffAnalyzer.Densities is None: #if we aren't skipping the density calculation step because we loaded in a density window already.
-        Image=puffAnalyzer.binary_window.image
+        bin_image=puffAnalyzer.binary_window.image
+        norm_image=puffAnalyzer.highpass_window.image
         maxPuffLen=puffAnalyzer.udc['maxPuffLen']# default: 15 
         maxPuffDiameter=puffAnalyzer.udc['maxPuffDiameter']# default: 10
-        puffAnalyzer.Densities=getDensities(Image, maxPuffLen, maxPuffDiameter)
+        puffAnalyzer.Densities=getDensities(bin_image, norm_image, maxPuffLen, maxPuffDiameter)
     denseWindow=Window(puffAnalyzer.Densities,name='Density Window')
     puffAnalyzer.denseWindow=denseWindow
     denseWindow.thresh_slider=QDoubleSpinBox()
