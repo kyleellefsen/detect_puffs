@@ -9,6 +9,8 @@ from process.progress_bar import ProgressBar
 import numpy as np
 import global_vars as g
 from scipy import spatial
+import time
+
 
 def getMask(nt=5,nx=5,ny=5):
     mask=np.zeros((nt,nx,ny))
@@ -164,51 +166,65 @@ def getHigherPointSingleProcess(args, remander):
     nTotal_pts, C, idxs, densities_jittered, C_idx, time_factor=args
     mt,mx,my=C.shape
     higher_pts=np.zeros((nTotal_pts,3)) #['Distance to next highest point, index of higher point, value of current point']
-    for r in np.arange(5,45,2):
+    for r in np.arange(3,45,2):
+        print(r)
         mask,center=getMask(r,r,r)
         oldremander=remander
         remander=[]
+        percent=0
+        tic=time.time()
         for ii in oldremander:
+            if r==3:
+                if percent<int(100*ii/len(oldremander)):
+                    percent=int(100*ii/len(oldremander))
+                    toc=time.time()-tic
+                    tic=time.time()
+                    print('Calculating Higher Points Radius {}.  {}%  {}s'.format(r,percent, toc))
             idx=idxs[ii]
             density=densities_jittered[ii]
-            t,x,y=idx
-            center2=np.copy(center)
-            t0=t-center[0]
-            tf=t+center[0]+1
-            x0=x-center[1]
-            xf=x+center[1]+1
-            y0=y-center[2]
-            yf=y+center[2]+1
-            mask2=np.copy(mask)
-            if t0<0:
-                mask2=mask2[center2[0]-t:,:,:]
-                center2[0]=t
-                t0=0
-            elif tf>mt-1:
-                mask2=mask2[:-(tf-mt+1),:,:]
-                tf=mt-1
-            if x0<0:
-                mask2=mask2[:,center2[1]-x:,:]
-                center2[1]=x
-                x0=0
-            elif xf>mx-1:
-                mask2=mask2[:,:-(xf-mx+1),:]
-                xf=mx-1
-            if y0<0:
-                mask2=mask2[:,:,center2[2]-y:]
-                center2[2]=y
-                y0=0
-            elif yf>my-1:
-                mask2=mask2[:,:,:-(yf-my+1)]
-                yf=my-1
-                
-            positions=np.array(np.where(mask2*C[t0:tf,x0:xf,y0:yf]>density)).astype(float).T-center2
+            posi=idx-center
+            posf=idx+center+1
+            offset=idx
+            try:
+                positions=np.array(np.where(mask*C[posi[0]:posf[0], posi[1]:posf[1], posi[2]:posf[2]]>density)).astype(float).T-center
+            except ValueError:
+                t,x,y=idx
+                t0,x0,y0=posi
+                tf,xf,yf=posf
+                center2=np.copy(center)
+                mask2=np.copy(mask)
+                if t0<0:
+                    mask2=mask2[center2[0]-t:,:,:]
+                    center2[0]=t
+                    t0=0
+                elif tf>mt-1:
+                    mask2=mask2[:-(tf-mt+1),:,:]
+                    tf=mt-1
+                if x0<0:
+                    mask2=mask2[:,center2[1]-x:,:]
+                    center2[1]=x
+                    x0=0
+                elif xf>mx-1:
+                    mask2=mask2[:,:-(xf-mx+1),:]
+                    xf=mx-1
+                if y0<0:
+                    mask2=mask2[:,:,center2[2]-y:]
+                    center2[2]=y
+                    y0=0
+                elif yf>my-1:
+                    mask2=mask2[:,:,:-(yf-my+1)]
+                    yf=my-1
+                positions=np.array(np.where(mask2*C[t0:tf,x0:xf,y0:yf]>density)).astype(float).T-center2
+                posi=np.array([t0,x0,y0])
+                offset=posi+center2
+            
             if len(positions)==0:
                 remander.append(ii)
             else:
                 distances=np.sqrt((positions[:,0]/time_factor)**2+positions[:,1]**2+positions[:,2]**2)
-                higher_pt=positions[np.argmin(distances)].astype(np.int)+np.array([t0,x0,y0])+center2
+                higher_pt=positions[np.argmin(distances)].astype(np.int)+offset
                 higher_pt=C_idx[higher_pt[0],higher_pt[1],higher_pt[2]]
                 higher_pt=[np.min(distances), higher_pt, density]
                 higher_pts[ii]=higher_pt
     return higher_pts
+
