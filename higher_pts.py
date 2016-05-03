@@ -5,6 +5,7 @@ Created on Mon Jan 04 15:17:57 2016
 @author: Kyle Ellefsen
 """
 from __future__ import division
+from PyQt4.QtGui import qApp
 from process.progress_bar import ProgressBar
 import numpy as np
 import global_vars as g
@@ -23,7 +24,14 @@ def getMask(nt=5,nx=5,ny=5):
                     mask[t,x,y]=1
     return mask, center
 
+'''
 
+Densities=g.m.puffAnalyzer.Densities
+density_thresh=g.m.puffAnalyzer.udc['density_threshold']
+time_factor=g.m.puffAnalyzer.udc['time_factor']
+from plugins.detect_puffs.higher_pts import *
+
+'''
 def getHigherPoints(Densities,density_thresh, time_factor):
     """"
     STRUCTURE OF HIGHER_PTS:
@@ -68,26 +76,59 @@ def getHigherPoints(Densities,density_thresh, time_factor):
         ii=remander[0]
         higher_pts[ii]=[maxDistance, ii, densities_jittered[ii]]
     elif len(remander)>1:
-        dens2=densities_jittered[remander]
-        possible_higher_pts=np.where(densities_jittered>np.min(dens2))[0]
-        dens3=densities_jittered[possible_higher_pts]
-        pos1=idxs[remander].astype(np.float)
-        pos1[:,0]=pos1[:,0]/time_factor
-        pos2=idxs[possible_higher_pts].astype(np.float)
-        pos2[:,0]=pos2[:,0]/time_factor
-        print('Constructing {}x{} distance matrix'.format(len(pos1),len(pos2)))
-        D=spatial.distance_matrix(pos1,pos2)
-        for i, pt in enumerate(remander):
-            density=densities_jittered[pt]
-            idxs2=dens3>density
-            pts_of_higher_density=possible_higher_pts[idxs2]
-            if len(pts_of_higher_density)==0: #this is the most dense point
-                higher_pts[pt]= [maxDistance, pt, density]
-            else:
-                distances_to_pts_of_higher_density=D[i,:][idxs2]
-                higher_pt=pts_of_higher_density[np.argmin(distances_to_pts_of_higher_density)]
-                distance_to_nearest_pt_with_higher_density=np.min(distances_to_pts_of_higher_density)
-                higher_pts[pt]= [distance_to_nearest_pt_with_higher_density, higher_pt, density]
+        if True:
+            dens2=densities_jittered[remander]
+            possible_higher_pts=np.where(densities_jittered>np.min(dens2))[0]
+            dens3=densities_jittered[possible_higher_pts]
+            pos1=idxs[remander].astype(np.float)
+            pos1[:,0]=pos1[:,0]/time_factor
+            pos2=idxs[possible_higher_pts].astype(np.float)
+            pos2[:,0]=pos2[:,0]/time_factor
+            print('Constructing {}x{} distance matrix'.format(len(pos1),len(pos2)))
+            D=spatial.distance_matrix(pos1,pos2)
+            for i, pt in enumerate(remander):
+                density=densities_jittered[pt]
+                idxs2=dens3>density
+                pts_of_higher_density=possible_higher_pts[idxs2]
+                if len(pts_of_higher_density)==0: #this is the most dense point
+                    higher_pts[pt]= [maxDistance, pt, density]
+                else:
+                    distances_to_pts_of_higher_density=D[i,:][idxs2]
+                    higher_pt=pts_of_higher_density[np.argmin(distances_to_pts_of_higher_density)]
+                    distance_to_nearest_pt_with_higher_density=np.min(distances_to_pts_of_higher_density)
+                    higher_pts[pt]= [distance_to_nearest_pt_with_higher_density, higher_pt, density]
+        elif False:
+            idxs_time_adjusted=idxs[:].astype(np.float)
+            idxs_time_adjusted[:,0]=idxs_time_adjusted[:,0]/time_factor
+            while len(remander)>1:
+                print(len(remander))
+                dens2=densities_jittered[remander]
+                density=np.min(dens2)
+                current_pt=remander[np.argmin(dens2)]
+                possible_higher_pts=np.where(densities_jittered>density)[0]            
+                pos1=idxs_time_adjusted[current_pt]
+                pos2=idxs_time_adjusted[possible_higher_pts]
+                Dsq=np.sum((pos2-pos1)**2,1)
+                higher_pt=possible_higher_pts[np.argmin(Dsq)]
+                d=np.sqrt(np.min(Dsq))
+                higher_pts[current_pt] = [d, higher_pt, density]
+                remander = remander[remander!=current_pt]
+            highest_pt=remander[0]
+            density=densities_jittered[highest_pt]
+            higher_pts[highest_pt]=[maxDistance, highest_pt, density]
+        else:
+            blockFrames=200
+            block_ends=np.arange(0,mt,blockFrames).astype(np.int)
+            block_ends=np.append(block_ends, mt)
+            times_remander=idxs[remander][:,0]
+            times_remander_blocks=[np.where(np.logical_and(times_remander>block_ends[i], times_remander<=block_ends[i+1]))[0] for i in np.arange(nCores)]
+            idxs_time_adjusted=idxs[:].astype(np.float)
+            idxs_time_adjusted[:,0]=idxs_time_adjusted[:,0]/time_factor
+            for times_remander_block in times_remander_blocks:   # times_remander_block is the 
+                density_block=densities_jittered[remander_block]
+                possible_higher_pts=np.where(densities_jittered>np.min(density_block))[0]
+                
+                
     return higher_pts, idxs
 
 
@@ -163,11 +204,16 @@ def getHigherPoint(q_results, q_progress, q_status, child_conn, args):
     q_results.put(higher_pts)
 
 def getHigherPointSingleProcess(args, remander):
+    progressBar1 = g.m.puffAnalyzer.algorithm_gui.higherPtsProgress1
+    progressBar2 = g.m.puffAnalyzer.algorithm_gui.higherPtsProgress2
+    progressBar1.setValue(0)
+    progressBar2.setValue(0); qApp.processEvents()
     nTotal_pts, C, idxs, densities_jittered, C_idx, time_factor=args
     mt,mx,my=C.shape
     higher_pts=np.zeros((nTotal_pts,3)) #['Distance to next highest point, index of higher point, value of current point']
     for r in np.arange(3,45,2):
         print(r)
+        progressBar2.setValue(100*r/45); qApp.processEvents()
         mask,center=getMask(r,r,r)
         oldremander=remander
         remander=[]
@@ -177,9 +223,12 @@ def getHigherPointSingleProcess(args, remander):
             if r==3:
                 if percent<int(100*ii/len(oldremander)):
                     percent=int(100*ii/len(oldremander))
+                    progressBar1.setValue(percent); qApp.processEvents()
                     toc=time.time()-tic
                     tic=time.time()
                     print('Calculating Higher Points Radius {}.  {}%  {}s'.format(r,percent, toc))
+            else:
+                progressBar1.setValue(100); qApp.processEvents()
             idx=idxs[ii]
             density=densities_jittered[ii]
             posi=idx-center
@@ -226,5 +275,6 @@ def getHigherPointSingleProcess(args, remander):
                 higher_pt=C_idx[higher_pt[0],higher_pt[1],higher_pt[2]]
                 higher_pt=[np.min(distances), higher_pt, density]
                 higher_pts[ii]=higher_pt
+    progressBar2.setValue(100); qApp.processEvents()
     return higher_pts
 

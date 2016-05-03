@@ -12,12 +12,14 @@ import global_vars as g
 from process.BaseProcess import BaseProcess, WindowSelector, MissingWindowError, SliderLabel, CheckBox
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
+from PyQt4 import uic
 from window import Window #to display any 3d array in Flika, just call Window(array_name)
 import pyqtgraph as pg
 from scipy import ndimage
-from .gaussianFitting import fitGaussian, fitRotGaussian
+from .puffs import Puffs, Puff
 from .densities import getDensities
 from .higher_pts import getHigherPoints
+from .clusters import Clusters, ClusterViewBox, ROI
 from process.filters import butterworth_filter
 from process.stacks import deinterleave, trim, zproject, image_calculator, pixel_binning, frame_binning, resize
 from process.math_ import subtract, ratio
@@ -90,6 +92,15 @@ def load_flika_file(filename=None):
     g.m.windows.append(puffAnalyzer)
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
         
 class Threshold_cluster(BaseProcess):
     '''threshold_cluster(binary_window, data_window, highpass_window, roi_width, paddingXY, paddingT_pre, paddingT_post, maxSigmaForGaussianFit, rotatedfit)
@@ -118,7 +129,6 @@ class Threshold_cluster(BaseProcess):
         super().__init__()
     def gui(self):
         self.gui_reset()
-        
         binary_window=WindowSelector()
         data_window=WindowSelector()
         highpass_window=WindowSelector()
@@ -152,8 +162,6 @@ class Threshold_cluster(BaseProcess):
         time_factor.setValue(1)
         load_flika_file=QCheckBox()
         load_flika_file.setChecked(True)
-        
-        
         if 'threshold_cluster_settings' in g.settings.d.keys():
             varDict=g.settings['threshold_cluster_settings']
             for key in varDict.keys():
@@ -175,20 +183,8 @@ class Threshold_cluster(BaseProcess):
         self.items.append({'name':'load_flika_file','string':'load_flika_file','object':load_flika_file})
         super().gui()
         self.ui.setGeometry(QRect(676, 55, 1231, 822))
-        
-        #self.ui.setGeometry(QRect(442, 116, 1345, 960))
     def __call__(self,binary_window, data_window, highpass_window, roi_width=3,paddingXY=20,paddingT_pre=15, paddingT_post=15,maxSigmaForGaussianFit=10, rotatedfit=True, radius=np.sqrt(2), maxPuffLen=15, maxPuffDiameter=10, density_threshold=None, time_factor=1, load_flika_file=True, keepSourceWindow=False):
-
-        
         g.m.statusBar().showMessage('Performing {}...'.format(self.__name__))
-        #if binary_window is None or data_window is None:
-            #raise(MissingWindowError("You cannot execute '{}' without selecting a window first.".format(self.__name__)))
-#            msg='The Threshold and Cluster analyzer requires a binary window as input.  Select a binary window.'
-#            g.m.statusBar().showMessage(msg)
-#            self.msgBox = QMessageBox()
-#            self.msgBox.setText(msg)
-#            self.msgBox.show()
-#            return
         filename=data_window.filename
         filename=os.path.splitext(filename)[0]+'.flika'
         if load_flika_file and os.path.isfile(filename):
@@ -218,16 +214,69 @@ class Threshold_cluster(BaseProcess):
         g.m.windows.append(puffAnalyzer)
         g.m.statusBar().showMessage('Finished with {}.'.format(self.__name__))
         return puffAnalyzer
-
 threshold_cluster=Threshold_cluster()
 def threshold_cluster_gui():
     threshold_cluster.gui()
+
+
+
+
+
+
+
+
+
+
+def getDensities_wrapper(puffAnalyzer):
+    if puffAnalyzer.Densities is None: #if we aren't skipping the density calculation step because we loaded in a density window already.
+        bin_image=puffAnalyzer.binary_window.image
+        norm_image=puffAnalyzer.highpass_window.image
+        maxPuffLen=puffAnalyzer.udc['maxPuffLen']# default: 15 
+        maxPuffDiameter=puffAnalyzer.udc['maxPuffDiameter']# default: 10
+        puffAnalyzer.Densities=getDensities(bin_image, norm_image, maxPuffLen, maxPuffDiameter)
+    denseWindow=Window(puffAnalyzer.Densities,name='Density Window')
+    puffAnalyzer.algorithm_gui.density_movie_layout.addWidget(denseWindow)
+    puffAnalyzer.denseWindow=denseWindow
+    denseWindow.thresh_slider=puffAnalyzer.algorithm_gui.thresh_slider
+    denseWindow.thresh_slider.setValue(puffAnalyzer.udc['density_threshold'])
+    denseWindow.thresh_button=puffAnalyzer.algorithm_gui.thresh_button1
+    puffAnalyzer.algorithm_gui.paddingXY.setText(str(puffAnalyzer.udc['paddingXY']))
+    puffAnalyzer.algorithm_gui.maxSigmaForGaussianFit.setText(str(puffAnalyzer.udc['maxSigmaForGaussianFit']))
+    puffAnalyzer.algorithm_gui.rotatedfit.setText(str(puffAnalyzer.udc['rotatedfit']))
+    denseWindow.thresh_button.pressed.connect(getClusters)
+def getClusters():
+    puffAnalyzer=g.m.puffAnalyzer
+    if puffAnalyzer.gettingClusters:
+        return None
+    puffAnalyzer.gettingClusters=True
+    Densities = puffAnalyzer.Densities
+    puffAnalyzer.udc['density_threshold']=puffAnalyzer.denseWindow.thresh_slider.value()
+    density_thresh = puffAnalyzer.udc['density_threshold'] # I come up with thresholds by looking at it, but there is a way to emperically determine what probability this corresponds to by using the binomial theorem, the number of voxels in our sphere, and the fact that only .1% of pixels will randomly be True
+    time_factor=puffAnalyzer.udc['time_factor'] #1 #this is how much I will 'shrink' time in order to calculate distances relative to pixels    
+    higher_pts, idxs = getHigherPoints(Densities,density_thresh, time_factor)
+    puffAnalyzer.algorithm_gui.tabWidget.setCurrentIndex(1); qApp.processEvents()
+    puffAnalyzer.clusters=Clusters(higher_pts,idxs,Densities.shape, puffAnalyzer)
+    puffAnalyzer.gettingClusters=False
+    puffAnalyzer.algorithm_gui.tabWidget.setCurrentIndex(1); qApp.processEvents()
+
+
+
+
+
+
+
+
+
+
+
+
 
 class PuffAnalyzer(QWidget):
     def __init__(self,data_window,binary_window,highpass_window,udc,persistentInfo=None,parent=None):
         '''udc -- all the user defined constants'''
         super(PuffAnalyzer,self).__init__(parent) ## Create window with ImageView widget
         g.m.puffAnalyzer=self
+        self.name='Puff Analyzer'
         self.setWindowIcon(QIcon('images/favicon.png'))
         self.data_window=data_window
         self.binary_window=binary_window
@@ -236,13 +285,19 @@ class PuffAnalyzer(QWidget):
         self.l=None
         self.gettingClusters=False
         self.generatingClusterMovie=False
+        
+        self.algorithm_gui = uic.loadUi(os.path.join(os.getcwd(),'plugins','detect_puffs','threshold_cluster.ui'))
+        self.algorithm_gui.setWindowIcon(QIcon('images/favicon.png'))
+
+        self.algorithm_gui.show()
+        
         if persistentInfo is not None:
             if 'roi_width' not in persistentInfo.udc.keys():
                 persistentInfo.udc['roi_width']=3
             self.loadPersistentInfo(persistentInfo)
         else:
             self.udc=udc
-            if set(np.unique(binary_window.image.astype(np.int)))!=set([0,1]): #tests if image is not boolean
+            if set(np.unique(binary_window.image))!=set([0,1]): #tests if image is not boolean
                 self.Densities=binary_window.image
                 self.binary_window.close()
             else:
@@ -1060,497 +1115,8 @@ class Trash(list):
             idxs.append([point['data'] for point in s.data].index(puff))
         scatterRemovePoints(self.puffAnalyzer.s3,idxs)
 
-
-
-class Point():
-    def __init__(self,idx):
-        self.children=[]
-        self.idx=idx
-    def __repr__(self):
-        return str(self.idx)
-    def getDescendants(self):
-        self.descendants=self.children[:]
-        for child in self.children:
-            self.descendants.extend(child.getDescendants())
-        return self.descendants
-        
-        
-def getDensities_wrapper(puffAnalyzer):
-    if puffAnalyzer.Densities is None: #if we aren't skipping the density calculation step because we loaded in a density window already.
-        bin_image=puffAnalyzer.binary_window.image
-        norm_image=puffAnalyzer.highpass_window.image
-        maxPuffLen=puffAnalyzer.udc['maxPuffLen']# default: 15 
-        maxPuffDiameter=puffAnalyzer.udc['maxPuffDiameter']# default: 10
-        puffAnalyzer.Densities=getDensities(bin_image, norm_image, maxPuffLen, maxPuffDiameter)
-    denseWindow=Window(puffAnalyzer.Densities,name='Density Window')
-    puffAnalyzer.denseWindow=denseWindow
-    denseWindow.thresh_slider=QDoubleSpinBox()
-    denseWindow.thresh_slider.setValue(puffAnalyzer.udc['density_threshold'])
-    denseWindow.thresh_button=QPushButton('Set Threshold')
-    denseWindow.layout.addWidget(denseWindow.thresh_slider)
-    denseWindow.layout.addWidget(denseWindow.thresh_button)
-    denseWindow.thresh_button.pressed.connect(getClusters)
     
-def getClusters():
-    qApp.processEvents()
-    puffAnalyzer=g.m.puffAnalyzer
-    if puffAnalyzer.gettingClusters:
-        return None
-    puffAnalyzer.gettingClusters=True
-    Densities = puffAnalyzer.Densities
-    puffAnalyzer.udc['density_threshold']=puffAnalyzer.denseWindow.thresh_slider.value()
-    density_thresh = puffAnalyzer.udc['density_threshold'] # I come up with thresholds by looking at it, but there is a way to emperically determine what probability this corresponds to by using the binomial theorem, the number of voxels in our sphere, and the fact that only .1% of pixels will randomly be True
-    time_factor=puffAnalyzer.udc['time_factor'] #1 #this is how much I will 'shrink' time in order to calculate distances relative to pixels    
-    higher_pts, idxs = getHigherPoints(Densities,density_thresh, time_factor)
-    puffAnalyzer.clusters=Clusters(higher_pts,idxs,Densities.shape, puffAnalyzer)
-    puffAnalyzer.gettingClusters=False
-    
-class Clusters():
-    def __init__(self,higher_pts,idxs,movieShape,puffAnalyzer,persistentInfo=None):
-        self.persistentInfo=persistentInfo
-        if persistentInfo is not None:
-            self.idxs=persistentInfo.pixel_idxs
-            self.movieShape=persistentInfo.movieShape
-            self.clusters=persistentInfo.clusters
-            self.puffAnalyzer=puffAnalyzer
-            self.getPuffs()
-        else:
-            self.higher_pts=higher_pts
-            self.idxs=idxs
-            self.movieShape=movieShape
-            self.puffAnalyzer=puffAnalyzer
-            self.vb=ClusterViewBox()
-            self.pw=pg.PlotWidget(viewBox=self.vb)
-            higher_pts_tmp=higher_pts[higher_pts[:,0]>1]
-            y=[d[0] for d in higher_pts_tmp] #smallest distance to higher point
-            x=[d[2] for d in higher_pts_tmp] # density 
-            self.pw.plot(x,np.log(y),pen=None, symbolBrush=QBrush(Qt.blue), symbol='o')
-            self.pw.plotItem.axes['left']['item'].setLabel('Smallest distance to denser point (natural logarithm)'); self.pw.plotItem.axes['bottom']['item'].setLabel('Density (natural logarithm)')
-            self.pw.setWindowTitle('Density vs distance')
-            self.pw.setWindowIcon(QIcon('images/favicon.png'))            
-            self.pw.show()
-            self.vb.drawFinishedSignal.connect(self.manuallySelectClusterCenters)
-            self.vb.EnterPressedSignal.connect(self.finished)
-        
-    def getPuffs(self):
-        bounds=[]
-        standard_deviations=[]
-        origins=[]
-        for i in np.arange(len(self.clusters)):
-            pos=self.idxs[self.clusters[i]]
-            bounds.append(np.array([np.min(pos,0),np.max(pos,0)]))
-            standard_deviations.append(np.std(pos[:,1:]-np.mean(pos[:,1:],0)))
-            origins.append(np.mean(pos,0))
-        self.bounds=np.array(bounds)
-        self.standard_deviations=np.array(standard_deviations)
-        self.origins=np.array(origins)
-    
-        mt,mx,my=self.movieShape
-        try:
-            self.cluster_im=np.zeros((mt,mx,my,4),dtype=np.float16)
-        except MemoryError:
-            print('There is not enough memory to create the image of clusters.')
-        cmap=matplotlib.cm.gist_rainbow
-        for i in np.arange(len(self.clusters)):
-            color=cmap(int(((i%5)*255./6)+np.random.randint(255./12)))
-            for j in np.arange(len(self.clusters[i])):
-                t,x,y=self.idxs[self.clusters[i][j]]
-                self.cluster_im[t,x,y,:]=color
-        if self.persistentInfo is None:
-            self.puffAnalyzer.puffs=Puffs(self,self.cluster_im,self.puffAnalyzer)
-            self.puffAnalyzer.preSetupUI()
-        else:
-            self.puffAnalyzer.puffs=Puffs(self,self.cluster_im,self.puffAnalyzer,self.persistentInfo)
-    def finished(self):
-        print('Finished with clusters! Getting puffs')
-        self.getPuffs()
-        
-    def manuallySelectClusterCenters(self):
-        if self.puffAnalyzer.generatingClusterMovie:
-            return
-        self.puffAnalyzer.generatingClusterMovie=True
-        self.pw.plotItem.clear()
-        centers=[]
-        outsideROI=[]
-        for i in np.arange(len(self.higher_pts))[self.higher_pts[:,0]>1]:
-            y=np.log(self.higher_pts[i][0])#smallest distance to higher point
-            x=self.higher_pts[i][2]# density 
-            if self.vb.currentROI.contains(x,y):
-                centers.append(i)
-            else:
-                outsideROI.append(i)
-        
-        higher_pts2=self.higher_pts[:,1].astype(np.int)
-        points=[Point(i) for i in np.arange(len(higher_pts2))]
-        loop=np.arange(len(higher_pts2))
-        loop=np.delete(loop,centers)
-        for i in loop:
-            if higher_pts2[i]!=i:
-                points[higher_pts2[i]].children.append(points[i])
-        
-        self.clusters=[]
-        nCenters=len(centers)
-        for i, center in enumerate(centers):
-            descendants=points[center].getDescendants()
-            cluster=[d.idx for d in descendants]
-            cluster=np.array(cluster+[center])
-            self.clusters.append(cluster)
-        
-        # This gets rid of clusters that contain very few True pixels
-        centers_with_small_cluster=[]
-        centers_with_large_cluster=[]
-        cluster_sizes=np.array([len(c) for c in self.clusters])
-        for i in np.arange(len(self.clusters),0,-1)-1:
-            if cluster_sizes[i]<10:  #this constant can be changed
-                centers_with_small_cluster.append(centers[i])
-                del self.clusters[i]
-            else:
-                centers_with_large_cluster.append(centers[i])
-    
-        self.pw.plot(self.higher_pts[centers_with_large_cluster,2],np.log(self.higher_pts[centers_with_large_cluster,0]),pen=None, symbolBrush=QBrush(Qt.green), symbol='o')
-        self.pw.plot(self.higher_pts[centers_with_small_cluster,2],np.log(self.higher_pts[centers_with_small_cluster,0]),pen=None, symbolBrush=QBrush(Qt.red), symbol='o')
-        self.pw.plot(self.higher_pts[outsideROI,2],np.log(self.higher_pts[outsideROI,0]),pen=None, symbolBrush=QBrush(Qt.blue), symbol='o')
-       
-        qApp.processEvents()
-        
-        
-        print('Generating Cluster Movie')
-        mt,mx,my=self.movieShape
-        try:
-            self.cluster_im=np.zeros((mt,mx,my,4),dtype=np.float16)
-        except MemoryError:
-            print('There is not enough memory to create the image of clusters (error in function manuallySelectClusterCenters).')
-        cmap=matplotlib.cm.gist_rainbow
-        for i in np.arange(len(self.clusters)):
-            color=cmap(int(((i%5)*255./6)+np.random.randint(255./12)))
-            for j in np.arange(len(self.clusters[i])):
-                t,x,y=self.idxs[self.clusters[i][j]]
-                self.cluster_im[t,x,y,:]=color
-        Window(self.cluster_im, 'Cluster Movie')
-        self.puffAnalyzer.generatingClusterMovie=False
 
-    
-    
-class Puffs:
-    def __init__(self,clusters,cluster_im,puffAnalyzer,persistentInfo=None):#weakfilt,strongfilt,paddingXY,paddingT_pre,paddingT_post,maxSigmaForGaussianFit,rotatedfit):
-        self.puffAnalyzer=puffAnalyzer
-        self.udc=puffAnalyzer.udc        
-        self.puffs=[]
-        self.index=0
-        self.clusters=clusters
-        self.highpass_window=puffAnalyzer.highpass_window
-        self.data_window=puffAnalyzer.data_window
-        self.cluster_im=cluster_im
-        self.puffs=[Puff(i,self.clusters,self,persistentInfo) for i in np.arange(len(self.clusters.clusters))]
-
-    def __getitem__(self, item):
-        if len(self.puffs)>0:
-            return self.puffs[item]
-        else:
-            return None
-    def removeCurrentPuff(self):
-        del self.puffs[self.index]
-        if self.index==0:
-            return self.index
-        else:
-            self.index-=1
-        return self.index
-    def getPuff(self):
-        if len(self.puffs)>0:
-            return self.puffs[self.index]
-        else:
-            return None
-    def increment(self):
-        self.index+=1
-        if len(self.puffs)<self.index+1:
-            self.index=0
-    def decrement(self):
-        self.index-=1
-        if self.index<0:
-            self.index=len(self.puffs)-1
-    def setIndex(self,index):
-        self.index=index
-        if len(self.puffs)<self.index+1:
-            self.index=0
-        elif self.index<0:
-            self.index=len(self.puffs)-1
-    def removePuffs(self,puffs):
-        idxs=[]
-        for puff in puffs:
-            idxs.append([point['data'] for point in self.puffAnalyzer.s1.data].index(puff))
-            self.puffs.remove(puff)
-        scatterRemovePoints(self.puffAnalyzer.s1,idxs)
-        if self.index>=len(self.puffs):
-            self.index=len(self.puffs)-1
-            
-    def addPuffs(self,puffs):
-        s=self.puffAnalyzer.s1
-        self.puffs.extend(puffs)
-        pos=[[puff.kinetics['x'],puff.kinetics['y']] for puff in puffs]
-        scatterAddPoints(s,pos,puffs)
-        self.puffAnalyzer.updateScatter()
-        #s.addPoints(pos=pos,data=puffs)
-
-        
-class Puff:
-    def __init__(self,starting_idx,clusters,puffs,persistentInfo=None):
-        print('Creating event {}/{}'.format(starting_idx, len(clusters.clusters)-1))
-        self.starting_idx=starting_idx
-        self.clusters=clusters
-        self.puffs=puffs
-        self.udc=puffs.udc
-        self.color=(255,0,0,255)
-        self.originalbounds=self.clusters.bounds[starting_idx] # 2x3 array: [[t_min,x_min,y_min],[t_max,x_max,y_max]]
-        t0=self.originalbounds[0][0]
-        t1=self.originalbounds[1][0]
-        x0=self.originalbounds[0][1]-self.udc['paddingXY']
-        x1=self.originalbounds[1][1]+self.udc['paddingXY']
-        y0=self.originalbounds[0][2]-self.udc['paddingXY']
-        y1=self.originalbounds[1][2]+self.udc['paddingXY']
-        mt,mx,my=self.puffs.data_window.image.shape
-        if t0<0: t0=0
-        if y0<0: y0=0
-        if x0<0: x0=0
-        if t1>=mt: t1=mt-1
-        if y1>=my: y1=my-1
-        if x1>=mx: x1=mx-1
-        self.bounds=[(t0,t1),(x0,x1),(y0,y1)]
-        
-        if persistentInfo is not None:
-            puff=persistentInfo.puffs[starting_idx]
-            self.trace=puff['trace']
-            self.kinetics=puff['kinetics']
-            self.gaussianParams=puff['gaussianParams']
-            self.mean_image=puff['mean_image']
-            self.gaussianFit=puff['gaussianFit']
-            try:
-                self.color=puff.color #(255,0,0,255)
-            except:
-                pass
-            return None
-        self.trace=None
-        self.kinetics=dict()
-        
-        #######################################################################
-        #############          FIND (x,y) ORIGIN       ########################
-        #######################################################################
-        '''
-        For debugging, use the following code:
-        self=g.m.puffAnalyzer.puffs.getPuff()
-        from plugins.detect_puffs.threshold_cluster import *
-        [(t0,t1),(x0,x1),(y0,y1)]=self.bounds
-        mt,mx,my=self.puffs.highpass_window.image.shape
-        '''
-        
-        bb=self.bounds
-        before=bb[0][0]-self.udc['paddingT_pre']
-        after=bb[0][1]+self.udc['paddingT_post']
-        if before<0: before=0
-        if after>=mt: after=mt-1;
-        self.kinetics['before']=before
-        self.kinetics['after']=after
-        self.sisterPuffs=[] # the length of this list will show how many gaussians to fit 
-        for idx,cluster in enumerate(self.clusters.bounds):
-            if np.any(np.intersect1d(np.arange(cluster[0,0],cluster[1,0]),np.arange(t0,t1))):
-                if np.any(np.intersect1d(np.arange(cluster[0,1],cluster[1,1]),np.arange(x0,x1))):
-                    if np.any(np.intersect1d(np.arange(cluster[0,2],cluster[1,2]),np.arange(y0,y1))):
-                        if idx != self.starting_idx:
-                            self.sisterPuffs.append(idx)
-        I=self.puffs.highpass_window.image[bb[0][0]:bb[0][1]+1,bb[1][0]:bb[1][1]+1,bb[2][0]:bb[2][1]+1]
-        I=np.mean(I,0)
-        
-        def getFitParams(idx):
-            xorigin,yorigin=self.clusters.origins[idx,1:]-np.array([x0,y0])
-            sigma=self.clusters.standard_deviations[idx]
-            x_lower=xorigin-sigma; x_upper=xorigin+sigma; y_lower=yorigin-sigma; y_upper=yorigin+sigma
-            amplitude=np.max(I)/2
-            sigma=3
-            if self.udc['rotatedfit']:
-                sigmax=sigma
-                sigmay=sigma
-                angle=45
-                p0=(xorigin,yorigin,sigmax,sigmay,angle,amplitude)
-                #                 xorigin                   yorigin             sigmax, sigmay, angle,    amplitude
-                fit_bounds = [(x_lower,x_upper), (y_lower,y_upper),  (2,self.udc['maxSigmaForGaussianFit']), (2,self.udc['maxSigmaForGaussianFit']), (0,90),   (0,np.max(I))]
-            else:
-                p0=(xorigin,yorigin,sigma,amplitude) 
-                #                 xorigin                   yorigin            sigma    amplitude
-                fit_bounds = [(x_lower,x_upper), (y_lower,y_upper),  (2,self.udc['maxSigmaForGaussianFit']),    (0,np.max(I))] #[(0.0, 2*self.paddingXY), (0, 2*self.paddingXY),(0,10),(0,10),(0,90),(0,5)]
-            return p0, fit_bounds
-        p0,fit_bounds=getFitParams(self.starting_idx)
-        for puff in self.sisterPuffs:
-            sister_p0, sister_fit_bounds=getFitParams(puff)
-            p0=p0+sister_p0
-            fit_bounds=fit_bounds+sister_fit_bounds
-        if self.udc['rotatedfit']:
-            p, I_fit, I_fit2= fitRotGaussian(I,p0,fit_bounds,nGaussians=1+len(self.sisterPuffs))
-            self.mean_image=I
-            self.gaussianFit=I_fit2
-            p[0]=p[0]+self.bounds[1][0] #Put back in regular coordinate system.  Add back x
-            p[1]=p[1]+self.bounds[2][0] #add back y 
-            self.gaussianParams=p
-            xorigin,yorigin,sigmax,sigmay,angle,amplitude=self.gaussianParams
-        else:
-            
-            p, I_fit, I_fit2= fitGaussian(I,p0,fit_bounds,nGaussians=1+len(self.sisterPuffs))
-            self.mean_image=I
-            self.gaussianFit=I_fit2
-            p[0]=p[0]+self.bounds[1][0] #Put back in regular coordinate system.  Add back x
-            p[1]=p[1]+self.bounds[2][0] #add back y 
-            self.gaussianParams=p
-            xorigin,yorigin,sigma,amplitude=self.gaussianParams
-
-        if self.udc['rotatedfit']:
-            self.kinetics['sigmax']=sigmax; self.kinetics['sigmay']=sigmay; self.kinetics['angle']=angle
-        else:
-            self.kinetics['sigma']=sigma;
-        self.kinetics['x']=xorigin; self.kinetics['y']=yorigin;
-        #######################################################################
-        #############          FIND PEAK       ########################
-        #######################################################################
-        if amplitude==0:
-            I_norm=np.zeros(self.gaussianFit.shape)
-            I_norm2=np.zeros(self.gaussianFit.shape)
-        else:
-            I_norm=I_fit/np.sum(I_fit)
-            I_norm2=I_fit2/np.sum(I_fit2)
-            
-
-        #I=self.puffs.highpass_im[before:after+1,bb[1][0]:bb[1][1]+1,bb[2][0]:bb[2][1]+1]
-        I=self.puffs.data_window.image[before:after+1,bb[1][0]:bb[1][1]+1,bb[2][0]:bb[2][1]+1]
-        #baseline=np.mean(I[:,I_norm2<.01])     
-        trace=np.zeros((len(I)))
-        x=int(np.floor(xorigin))-self.bounds[1][0]
-        y=int(np.floor(yorigin))-self.bounds[2][0]
-        roi_width=self.udc['roi_width']
-        r=(roi_width-1)/2        
-        
-        bounds=[x-r,x+r+1,y-r,y+r+1]
-        if I[0,x-r:x+r+1,y-r:y+r+1].size==0: # check if roi exceeds the region we cut out of the window
-            if bounds[0]<0:
-                bounds[0]=0
-            if bounds[2]<0:
-                bounds[2]=0
-            if bounds[1]>I.shape[1]:
-                bounds[1]=I.shape[1]
-            if bounds[3]>I.shape[2]:
-                bounds[3]=I.shape[2]
-        for i in np.arange(len(trace)):
-            #trace[i]=I[i,x,y]
-            trace[i]=np.mean(I[i,bounds[0]:bounds[1],bounds[2]:bounds[3]])
-            #trace[i]=2*np.sum((I[i]-baseline)*I_norm)+baseline
-            #I'm not sure why the 2 is needed, but this seems to always work out to 1:
-            #            from analyze.puffs.gaussianFitting import gaussian
-            #            x = np.arange(1000,dtype=float)
-            #            y = np.arange(1000,dtype=float)
-            #            amplitude=2.8
-            #            sigma=7
-            #            I=gaussian(x[:,None], y[None,:],100,100,sigma,amplitude)
-            #            I_fit=gaussian(x[:,None], y[None,:],100,100,sigma,1)
-            #            I_norm=I_fit/np.sum(I_fit)
-            #            calc_amp=2*np.sum(I*I_norm)
-            #            print('Original amp={}  Calculated amp={}'.format(amplitude,calc_amp))
-        self.trace=trace
-        self.kinetics['t_start']=t0
-        self.kinetics['t_end']=t1
-        self.calcRiseFallTimes()
-        
-    def calcRiseFallTimes(self):
-        before=self.kinetics['before']
-        t_start=self.kinetics['t_start']-before
-        t_end=self.kinetics['t_end']-before
-        baseline=self.trace[t_start]
-        t_peak=np.argmax(self.trace[t_start:t_end+1])+t_start
-        f_peak=self.trace[t_peak]
-        if baseline>f_peak:
-            baseline=self.trace[t_start]
-        amplitude=f_peak-baseline
-        thresh20=baseline+amplitude*.2
-        thresh50=baseline+amplitude*.5
-        thresh80=baseline+amplitude*.8
-        tmp=np.argwhere(self.trace>thresh20); tmp=tmp[np.logical_and(tmp>=t_start,tmp<=t_peak)]; 
-        if len(tmp)==0: r20=np.nan
-        else:  r20=tmp[0]-t_start
-        tmp=np.argwhere(self.trace>thresh50); tmp=tmp[np.logical_and(tmp>=t_start,tmp<=t_peak)];
-        if len(tmp)==0: r50=np.nan
-        else:  r50=tmp[0]-t_start
-        tmp=np.argwhere(self.trace>thresh80); tmp=tmp[np.logical_and(tmp>=t_start,tmp<=t_peak)]; 
-        if len(tmp)==0: r80=np.nan
-        else:  r80=tmp[0]-t_start
-        tmp=np.argwhere(self.trace<thresh80); tmp=tmp[tmp>=t_peak]; 
-        if len(tmp)==0: f80=np.nan
-        else: f80=tmp[0]-t_peak
-        
-        tmp=np.argwhere(self.trace<thresh50); tmp=tmp[tmp>=t_peak]; 
-        if len(tmp)==0: f50=np.nan
-        else: f50=tmp[0]-t_peak
-        
-        tmp=np.argwhere(self.trace<thresh20); tmp=tmp[tmp>=t_peak]; 
-        if len(tmp)==0: f20=np.nan
-        else: f20=tmp[0]-t_peak
-        
-        tmp=np.argwhere(self.trace<baseline); tmp=tmp[tmp>=t_peak]; 
-        if len(tmp)==0: f0=np.nan
-        else: 
-            f0=tmp[0]
-            if f0<t_end:
-                t_end=f0
-            f0=f0-t_peak
-            
-        self.kinetics['amplitude']=amplitude
-        self.kinetics['baseline']=baseline
-        #self.kinetics['t_end']=t_end+before
-        self.kinetics['r20']=r20
-        self.kinetics['r50']=r50
-        self.kinetics['r80']=r80
-        self.kinetics['f20']=f20
-        self.kinetics['f50']=f50
-        self.kinetics['f80']=f80
-        self.kinetics['f0']=f0
-        self.kinetics['t_peak']=t_peak+before
-
-            
-    def plot(self,figure=None):
-        if figure is None:
-            figure=pg.plot()
-        k=self.kinetics
-        baseline=k['baseline']; amplitude=k['amplitude']
-        #thresh20=baseline+amplitude*.2
-        #thresh50=baseline+amplitude*.5
-        #thresh80=baseline+amplitude*.8
-        x=np.arange(len(self.trace))+k['before']
-        figure.plot(x,self.trace,pen=pg.mkPen(width=2))
-        #figure.plot(x,self.fStrong,pen=pg.mkPen('g'))
-        #figure.plot(x,self.fWeak,pen=pg.mkPen('r'))
-        self.peakLine=figure.addLine(y=baseline,pen=pg.mkPen('y',style=Qt.DashLine))
-        self.baselineLine=figure.addLine(y=baseline+amplitude,pen=pg.mkPen('y',style=Qt.DashLine))
-        self.startLine=figure.addLine(x=k['t_start'],pen=pg.mkPen('y',style=Qt.DashLine),movable=True,bounds=(self.kinetics['before'],self.kinetics['t_peak']))
-        self.endLine=figure.addLine(x=k['t_end'],pen=pg.mkPen('y',style=Qt.DashLine),movable=True, bounds=(self.kinetics['t_peak'],self.kinetics['after']))
-        self.startLine.sigDragged.connect(self.changeStartTime)
-        self.endLine.sigDragged.connect(self.changeEndTime)
-    def changeStartTime(self,line):
-        time=line.value()
-        time=int(np.round(time))
-        if time!=line.value():
-            self.startLine.setValue(time)
-        oldstart=self.kinetics['t_start']
-        self.kinetics['t_start']=time
-        if oldstart!=time:
-            self.calcRiseFallTimes()
-            self.baselineLine.setValue(self.kinetics['baseline'])
-            self.peakLine.setValue(self.kinetics['baseline']+self.kinetics['amplitude'])
-            self.endLine.setValue(self.kinetics['t_end'])
-            self.puffs.puffAnalyzer.drawRedOverlay()
-    def changeEndTime(self,line):
-        time=line.value()
-        time=int(np.round(time))
-        if time!=line.value():
-            self.endLine.setValue(time)
-        oldend=self.kinetics['t_end']
-        if oldend!=time:   
-            self.kinetics['t_end']=time
-            self.puffs.puffAnalyzer.drawRedOverlay()
-    
     
 class GroupAnalyzer(QWidget):
     sigTimeChanged=Signal(int)
@@ -1931,7 +1497,6 @@ def scatterRemovePoints(scatterplot,idxs):
     points=scatterplot.points()
     points=points[i2]
     spots=[{'pos':points[i].pos(),'data':points[i].data(),'brush':points[i].brush()} for i in np.arange(len(points))]
-    #spots=[{'pos':points[i].pos(),'data':points[i].data(),'brush':points[i].brush(),'pen':points[i].pen()} for i in np.arange(len(points))]
     scatterplot.clear()
     scatterplot.addPoints(spots)
 def scatterAddPoints(scatterplot,pos,data):
@@ -1940,53 +1505,8 @@ def scatterAddPoints(scatterplot,pos,data):
     spots.extend([{'pos':pos[i],'data':data[i]} for i in np.arange(len(pos))])
     scatterplot.clear()
     scatterplot.addPoints(spots)
-#    scatterplot.data=np.empty(len(oldData)-numPts,dtype=scatterplot.data.dtype)
-#    i2=[i for i in np.arange(len(oldData)) if i not in idxs]
-#    scatterplot.data=oldData[i2]
-#    scatterplot.prepareGeometryChange()
-#    scatterplot.bounds = [None, None]
-#    scatterplot.invalidate()
-#    scatterplot.updateSpots(oldData)
-#    scatterplot.sigPlotChanged.emit(scatterplot)
-#    for pt in scatterplot.data:
-#        if pt['item'] is not None:
-#            pt['item']._data=pt
 
 
-class ClusterViewBox(pg.ViewBox):
-    drawFinishedSignal=Signal()
-    EnterPressedSignal=Signal()
-    def __init__(self, *args, **kwds):
-        pg.ViewBox.__init__(self, *args, **kwds)
-        self.currentROI=None
-    def keyPressEvent(self,ev):
-        if ev.key() == Qt.Key_Enter or ev.key() == Qt.Key_Return:
-            self.EnterPressedSignal.emit()
-    def mouseDragEvent(self, ev):
-        if ev.button() == Qt.LeftButton:
-            ev.accept()
-            self.ev=ev
-            if ev.isStart():
-                pt=self.mapSceneToView(self.ev.buttonDownScenePos())
-                self.x=pt.x() # this sets x and y to the button down position, not the current position
-                self.y=pt.y()
-                #print("Drag start x={},y={}".format(self.x,self.y))
-                if self.currentROI is not None:
-                    self.currentROI.delete()
-                self.currentROI=ROI(self,self.x,self.y)
-            if ev.isFinish():
-                self.currentROI.drawFinished()
-                self.drawFinishedSignal.emit()
-            else: # if we are in the middle of the drag between starting and finishing
-                pt=self.mapSceneToView(self.ev.scenePos())
-                self.x=pt.x() # this sets x and y to the button down position, not the current position
-                self.y=pt.y()
-                #print("Drag continuing x={},y={}".format(self.x,self.y))
-                self.currentROI.extend(self.x,self.y)
-        else:
-            print('event in ClusterViewBox: {}'.format(ev))
-            g.m.ev=ev
-            pg.ViewBox.mouseDragEvent(self, ev)
             
 class ScatterViewBox(ClusterViewBox):
     def __init__(self, *args, **kwds):
@@ -2032,41 +1552,7 @@ class ScatterViewBox(ClusterViewBox):
             self.scatter_color=tuple((np.array(self.color.getRgbF())*255).astype(np.int))
         
             
-class ROI(QWidget):
-    def __init__(self,viewbox,x,y):
-        QWidget.__init__(self)
-        self.viewbox=viewbox
-        self.path=QPainterPath(QPointF(x,y))
-        self.pathitem=QGraphicsPathItem(self.viewbox)
-        self.color=Qt.yellow
-        self.pathitem.setPen(QPen(self.color))
-        self.pathitem.setPath(self.path)
-        self.viewbox.addItem(self.pathitem,ignoreBounds=True)
-        self.mouseIsOver=False
-    def extend(self,x,y):
-        self.path.lineTo(QPointF(x,y))
-        self.pathitem.setPath(self.path)
-    def getPoints(self):
-        points=[]
-        for i in np.arange(self.path.elementCount()):
-            e=self.path.elementAt(i)
-            x=e.x; y=e.y
-            if len(points)==0 or points[-1]!=(x,y):
-                points.append((x,y))
-        self.pts=points
-        return self.pts
-    def drawFinished(self):
-        self.path.closeSubpath()
-        self.draw_from_points(self.getPoints())
-    def contains(self,x,y):
-        return self.path.contains(QPointF(x,y))
-    def draw_from_points(self,pts):
-        self.path=QPainterPath(QPointF(pts[0][0],pts[0][1]))
-        for i in np.arange(len(pts)-1)+1:        
-            self.path.lineTo(QPointF(pts[i][0],pts[i][1]))
-        self.pathitem.setPath(self.path)
-    def delete(self):
-        self.viewbox.removeItem(self.pathitem)
+
         
         
 class PersistentInfo:
