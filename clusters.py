@@ -87,7 +87,6 @@ class Clusters():
             self.puffAnalyzer.algorithm_gui.fitGaussianButton.pressed.connect(self.finished)
         
     def getPuffs(self):
-        
         cluster_sizes=np.array([len(cluster) for cluster in self.clusters])
         for i in np.arange(len(self.clusters),0,-1)-1:
             if cluster_sizes[i]<self.thresh_line.value(): 
@@ -211,7 +210,7 @@ class ClusterViewBox(pg.ViewBox):
         if ev.key() == Qt.Key_Enter or ev.key() == Qt.Key_Return:
             self.EnterPressedSignal.emit()
     def mouseDragEvent(self, ev):
-        if ev.button() == Qt.LeftButton:
+        if ev.button() == Qt.RightButton:
             ev.accept()
             self.ev=ev
             if ev.isStart():

@@ -566,8 +566,8 @@ class PuffAnalyzer(QWidget):
         r=(roi_width-1)/2
         x0=x-r; x1=x+r+1; y0=y-r; y1=y+r+1;
         pts=[(x0,y0),(x0,y1),(x1,y1),(x1,y0),(x0,y0)]
-        self.roi=makeROI('rectangle',pts,self.data_window)
-        self.data_window.deleteButtonSignal.disconnect(self.roi.deleteCurrentROI)
+        self.roi=makeROI('rectangle',pts,self.data_window, resizable=False)
+        #self.data_window.deleteButtonSignal.disconnect(self.roi.deleteCurrentROI)
         self.redTraces=[]
         self.data_window.keyPressSignal.connect(self.keyPressEvent)
         self.roi.plotSignal.connect(self.linkTracefig)
@@ -586,10 +586,11 @@ class PuffAnalyzer(QWidget):
         self.close()
         event.accept() # let the window close
     def close(self):
-        if self.roi in self.data_window.rois:
-            self.data_window.closeSignal.disconnect(self.roi.delete)
-            self.roi.delete()
-        del self.roi
+        if hasattr(self, 'roi'):
+            if self.roi in self.data_window.rois:
+                self.data_window.closeSignal.disconnect(self.roi.delete)
+                self.roi.delete()
+            del self.roi
         if g.m.currentTrace is not None:
             for i in np.arange(len(self.redTraces)):
                 g.m.currentTrace.p1.removeItem(self.redTraces[i][0])
@@ -721,19 +722,22 @@ class PuffAnalyzer(QWidget):
         point.setPen('y', width=2)
         point.setBrush(puff.color)
         # move the roi to that point
+        self.roi.blockSignals(True)
         pts=self.roi.getPoints()
         roi_pt=np.array([(pts[0][0]+pts[2][0])/2,(pts[0][1]+pts[2][1])/2])
         puff_pt=np.array([puff.kinetics['x'],puff.kinetics['y']])
         difference=puff_pt-roi_pt
         
-        self.roi.path.translate(QPointF(*difference)) #translates the path
-        self.roi.pathitem.setPath(self.roi.path) #sets the roi path; moves the yellow box
-        self.roi.getPoints()
+        self.roi.translate(QPointF(*difference)) #translates the path
+        self.roi.blockSignals(False)
+        self.roi.getMask()
+
+        pts = self.roi.getPoints()
         trace=self.roi.getTrace()
         roi_index=g.m.currentTrace.get_roi_index(self.roi)
         g.m.currentTrace.update_trace_full(roi_index,trace)
         for roi in self.roi.linkedROIs:
-            roi.draw_from_points(self.roi.getPoints())
+            roi.draw_from_points(pts)
             roi.getMask()
             trace=roi.getTrace()
             roi_index=g.m.currentTrace.get_roi_index(roi)
@@ -792,13 +796,13 @@ class PuffAnalyzer(QWidget):
             self.setCurrPuff(new_idx)
         elif ev.key()==Qt.Key_Delete:
             if self.roi.mouseIsOver or self.roi.beingDragged:
-                puffs=[pt.data() for pt in self.s1.points() if self.roi.contains(pt.pos().x(),pt.pos().y())]
+                puffs=[pt.data() for pt in self.s1.points() if self.roi.contains(pt.pos().x(),pt.pos().y(), corrected=False)]
                 self.discard_puffs(puffs)                
             else: 
                 self.discard_currPuff()
         elif ev.key()==Qt.Key_G:
             #Group all events in roi
-            groups=[pt.data() for pt in self.s2.points() if self.roi.contains(pt.pos().x(),pt.pos().y())]
+            groups=[pt.data() for pt in self.s2.points() if self.roi.contains(pt.pos().x(),pt.pos().y(), corrected=False)]
             if len(groups)==0:
                 return
             puffs=list(itertools.chain(*[group.puffs for group in groups]))
@@ -809,7 +813,7 @@ class PuffAnalyzer(QWidget):
             for group in self.groups:
                 self.s2.addPoints(pos=[group.pos],data=group)
         elif ev.key()==Qt.Key_U:
-            groups=[pt.data() for pt in self.s2.points() if self.roi.contains(pt.pos().x(),pt.pos().y())]
+            groups=[pt.data() for pt in self.s2.points() if self.roi.contains(pt.pos().x(),pt.pos().y(), corrected=False)]
             if len(groups)==0:
                 return
             puffs=list(itertools.chain(*[group.puffs for group in groups]))
@@ -845,18 +849,19 @@ class PuffAnalyzer(QWidget):
         self.puffsVisible=not self.puffsVisible
         
     def drawRedOverlay(self):
-        puffs=[pt.data() for pt in self.s1.points() if self.roi.contains(pt.pos().x(),pt.pos().y())]
+        puffs=[pt.data() for pt in self.s1.points() if self.roi.contains(pt.pos().x(),pt.pos().y(), corrected=False)]
         times=[[puff.kinetics['t_start'],puff.kinetics['t_end']+1] for puff in puffs]
         data=g.m.currentTrace.rois[g.m.currentTrace.get_roi_index(self.roi)]['p1trace'].getData()[1]
-        
         x=np.array([np.arange(*times[i]) for i in np.arange(len(times))])
         traces=[data[time] for time in x]
         y=np.array(traces)
         for i in np.arange(len(self.redTraces)):
             g.m.currentTrace.p1.removeItem(self.redTraces[i][0])
         self.redTraces=[]
+        
         for i in np.arange(len(x)):
-            self.redTraces.append([g.m.currentTrace.p1.plot(x[i],y[i],pen=pg.mkPen('r')),puffs[i]])
+            pl = g.m.currentTrace.p1.plot(x[i],y[i],pen=pg.mkPen('r'))
+            self.redTraces.append([pl,puffs[i]])
         currentPuff=self.puffs.getPuff()
         if currentPuff in puffs:
             idx=puffs.index(currentPuff)
@@ -868,7 +873,7 @@ class PuffAnalyzer(QWidget):
         pos=ev.pos()
         pos=g.m.currentTrace.vb.mapSceneToView(pos)
         t=pos.x()
-        puffs=[pt.data() for pt in self.s1.points() if self.roi.contains(pt.pos().x(),pt.pos().y())]
+        puffs=[pt.data() for pt in self.s1.points() if self.roi.contains(pt.pos().x(),pt.pos().y(), corrected=False)]
         times=[[puff.kinetics['t_start'],puff.kinetics['t_end']] for puff in puffs]
         try:
             index=[(t<=time[1] and t>=time[0]) for time in times].index(True)
