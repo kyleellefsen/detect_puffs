@@ -87,10 +87,11 @@ class Clusters():
             self.puffAnalyzer.algorithm_gui.fitGaussianButton.pressed.connect(self.finished)
         
     def getPuffs(self):
-        cluster_sizes=np.array([len(cluster) for cluster in self.clusters])
-        for i in np.arange(len(self.clusters),0,-1)-1:
-            if cluster_sizes[i]<self.thresh_line.value(): 
-                del self.clusters[i]             # This gets rid of clusters that contain very few True pixels
+        if self.persistentInfo is None:
+            cluster_sizes=np.array([len(cluster) for cluster in self.clusters])
+            for i in np.arange(len(self.clusters),0,-1)-1:
+                if cluster_sizes[i]<self.thresh_line.value(): 
+                    del self.clusters[i]             # This gets rid of clusters that contain very few True pixels
         
         bounds=[]
         standard_deviations=[]
@@ -107,9 +108,11 @@ class Clusters():
         if self.persistentInfo is None:
             self.puffAnalyzer.puffs=Puffs(self,self.cluster_im,self.puffAnalyzer)
             self.puffAnalyzer.preSetupUI()
+            self.cluster_movie.close()
         else:
+            self.cluster_im = self.make_cluster_im()
             self.puffAnalyzer.puffs=Puffs(self,self.cluster_im,self.puffAnalyzer,self.persistentInfo)
-        self.cluster_movie.close()
+        
     def finished(self):
         print('Finished with clusters! Getting puffs')
         self.getPuffs()
@@ -155,16 +158,7 @@ class Clusters():
             cluster=np.array(cluster+[center])
             self.clusters.append(cluster)
         
-        print('Generating Cluster Movie')
-        mt,mx,my=self.movieShape
-        try:
-            self.cluster_im=np.zeros((mt,mx,my,4),dtype=np.float16)
-        except MemoryError:
-            print('There is not enough memory to create the image of clusters (error in function manuallySelectClusterCenters).')
-        for i, cluster in enumerate(self.clusters):
-            color=cmap(int(((i%5)*255./6)+np.random.randint(255./12)))
-            pos=self.idxs[cluster]
-            self.cluster_im[pos[:,0],pos[:,1], pos[:,2],:] = color
+        self.cluster_im = self.make_cluster_im()
         self.cluster_movie=Window(self.cluster_im, 'Cluster Movie')
         self.cluster_movie.link(self.puffAnalyzer.denseWindow)
         
@@ -184,6 +178,19 @@ class Clusters():
         self.set_thresh_button = self.puffAnalyzer.algorithm_gui.threshold_button_2
         self.set_thresh_button.clicked.connect(self.set_threshold)
         self.puffAnalyzer.generatingClusterMovie=False
+        
+    def make_cluster_im(self):
+        print('Generating Cluster Movie')
+        mt,mx,my=self.movieShape
+        try:
+            cluster_im=np.zeros((mt,mx,my,4),dtype=np.float16)
+        except MemoryError:
+            print('There is not enough memory to create the image of clusters (error in function clusters.make_cluster_im).')
+        for i, cluster in enumerate(self.clusters):
+            color=cmap(int(((i%5)*255./6)+np.random.randint(255./12)))
+            pos=self.idxs[cluster]
+            cluster_im[pos[:,0],pos[:,1], pos[:,2],:] = color
+        return cluster_im
         
     def set_threshold(self):
         threshold=self.thresh_line.value()
