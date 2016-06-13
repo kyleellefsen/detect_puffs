@@ -157,6 +157,20 @@ class Clusters():
             cluster=[d.idx for d in descendants]
             cluster=np.array(cluster+[center])
             self.clusters.append(cluster)
+
+        for i, cluster in enumerate(self.clusters):
+            pos = self.idxs[cluster]
+            mean_pos = np.mean(pos, 0)
+            values = np.exp(self.puffAnalyzer.denseWindow.image[pos[:, 0], pos[:, 1], pos[:, 2]])
+            mean_pos = np.dot(values, pos) / np.sum(values)
+            distances_from_center = np.sqrt(np.sum((pos[:, 1:] - mean_pos[1:]) ** 2, 1))
+            times_from_center = np.abs(pos[:, 0] - mean_pos[0])
+            pos_to_keep = np.logical_and(times_from_center <= self.puffAnalyzer.udc['maxPuffDiameter'],
+                                         distances_from_center <= self.puffAnalyzer.udc['maxPuffLen'])
+            self.clusters[i] = cluster[pos_to_keep]
+        for i in np.arange(len(self.clusters),0,-1)-1:
+            if len(self.clusters[i])==0:
+                del self.clusters[i]
         
         self.cluster_im = self.make_cluster_im()
         self.cluster_movie=Window(self.cluster_im, 'Cluster Movie')
