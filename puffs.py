@@ -4,7 +4,6 @@ Created on Thu Apr 28 12:13:09 2016
 
 @author: Kyle Ellefsen
 """
-from __future__ import (absolute_import, division,print_function) #, unicode_literals) http://stackoverflow.com/a/28162261/4441139
 import numpy as np
 from PyQt4.QtCore import Qt
 from PyQt4.QtGui import qApp

@@ -4,9 +4,6 @@ Created on Fri Apr 22 10:58:29 2016
 
 @author: kyle
 """
-from __future__ import (absolute_import, division,print_function) #, unicode_literals) http://stackoverflow.com/a/28162261/4441139
-from future.builtins import (bytes, dict, int, list, object, range, str, ascii, chr, hex, input, next, oct, open, pow, round, super, filter, map, zip)
-
 import numpy as np
 import global_vars as g
 from PyQt4.QtGui import *

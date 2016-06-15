@@ -6,7 +6,6 @@ Created on Fri Aug 01 14:12:20 2014
 
 Run this file in Spyder after you've created a puffAnalyzer
 """
-from __future__ import division
 from pyqtgraph import plot,show
 import pyqtgraph as pg
 import numpy as np
