@@ -127,9 +127,9 @@ class Threshold_cluster(BaseProcess):
 
     def gui(self):
         self.gui_reset()
-        binary_window=WindowSelector()
         data_window=WindowSelector()
-        highpass_window=WindowSelector()
+        normalized_window=WindowSelector()
+        blurred_window=WindowSelector()
         roi_width=OddSlider(0)
         roi_width.setRange(1,21)
         roi_width.setValue(1)
@@ -167,9 +167,9 @@ class Threshold_cluster(BaseProcess):
                     eval(key+'.setValue('+str(varDict[key])+')')
                 except NameError:
                     pass
-        self.items.append({'name':'binary_window','string':'Binary window containing puffs','object':binary_window})
-        self.items.append({'name':'data_window','string':'Data window containing F/F0 data','object':data_window})
-        self.items.append({'name':'highpass_window','string':'High pass window containing data with baseline at 0','object':highpass_window})
+        self.items.append({'name':'data_window','string':'Data window containing F/F0 data', 'object': data_window})
+        self.items.append({'name':'normalized_window','string':'Normalized window containing data with baseline at 0','object': normalized_window})
+        self.items.append({'name':'blurred_window','string': 'Gaussian Blurred normalized window','object': blurred_window})
         self.items.append({'name':'roi_width','string':'roi_width','object':roi_width})
         self.items.append({'name':'paddingXY','string':'paddingXY','object':paddingXY})
         self.items.append({'name':'paddingT_pre','string':'paddingT_pre','object':paddingT_pre})
@@ -195,7 +195,7 @@ class Threshold_cluster(BaseProcess):
             print('Found persistentInfo file.  Loading previous results')
             with bz2.BZ2File(filename, 'rb') as f:
                 persistentInfo = pickle.load(f)
-            puffAnalyzer = PuffAnalyzer(data_window, None, normalized_window, None, persistentInfo)
+            puffAnalyzer = PuffAnalyzer(data_window, normalized_window, blurred_window, None, persistentInfo)
         else:
             udc=dict()
             udc['roi_width'] = roi_width
