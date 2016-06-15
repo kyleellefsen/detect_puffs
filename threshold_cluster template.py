@@ -4,42 +4,19 @@ Created on Fri Feb 06 11:24:36 2015
 
 @author: Kyle Ellefsen
 """
-
-open_file()
-pixel_binning(2)
-subtract(100) #subtract baseline
-data_window=ratio(0,30,'average'); #ratio(first_frame, nFrames, ratio_type), now we are in F/F0
-data_window.setWindowTitle('Data Window (F/F0)')
-high_pass=butterworth_filter(1,.00615,1,keepSourceWindow=True) # High pass filter 
-high_pass.setWindowTitle('High Pass Data Window (filtered F/F0)')
-low_pass=image_calculator(data_window,high_pass,'Subtract',keepSourceWindow=True) # we will use the low pass image as an approximation for the variance of the photon noise.  
-low_pass.image[low_pass.image<1]=1 # We can't take the sqrt of a negative number
-low_pass=power(.5) #convert from variance to standard deviation
-high_pass.setAsCurrentWindow() 
-norm_window=ratio(0,30,'standard deviation', keepSourceWindow=True) 
-image_calculator(norm_window,low_pass,'Divide') #now the noise should be constant throughout the imaging field and over the duration of the movie
-norm_window=set_value(0,  1000, 1099) #our butterworth_filter gives us an artifact towards the end of the movie
-norm_window=set_value(0,  0, 50) #our butterworth_filter gives us an artifact towards the end of the movie
-norm_window.setWindowTitle('Normalized Window')
-#
-gaussian_blur(1, keepSourceWindow=True)
-binary_window=threshold(.7)
-binary_window.setWindowTitle('Binary Window')
-#threshold_cluster(binary_window,data_window,norm_window,rotatedfit=False, density_threshold=4,time_factor=3)
-
-
-data_window=open_file(r'D:\Desktop\data_window.tif')
-high_pass=open_file(r'D:\Desktop\high_pass.tif')
-norm_window=open_file(r'D:\Desktop\norm_window.tif')
-binary_window=open_file(r'D:\Desktop\binary_window.tif')
-
-
-
-
-threshold_cluster(binary_window,high_pass,norm_window,rotatedfit=False, roi_width=9, maxPuffDiameter=15, maxSigmaForGaussianFit=15, maxPuffLen=5, density_threshold=3.5,time_factor=1)
-
-
-
-
-
-#puffs at 519, 533
+if __name__ == '__main__':
+    import os, sys; flika_dir = os.path.join(os.path.expanduser('~'),'Documents', 'GitHub', 'flika'); sys.path.append(flika_dir); from flika import *; start_flika()
+    from plugins.detect_puffs.threshold_cluster import threshold_cluster
+    from plugins.detect_puffs.puff_simulator.puff_simulator import simulate_puffs
+    simulate_puffs(nFrames=1000,nPuffs=20)
+    baseline = -5  # This is the mean pixel value in the absence of photons.
+    subtract(baseline)
+    data_window=ratio(0, 30, 'average')  # ratio(first_frame, nFrames, ratio_type). Now we are in F/F0
+    data_window.setName('Data Window (F/F0)')
+    norm_image = data_window.image - 1
+    norm_window = Window(norm_image)
+    norm_window.setName('Normalized Window')
+    blurred_window = gaussian_blur(2, norm_edges=True, keepSourceWindow=True)
+    blurred_window.setName('Blurred Window')
+    threshold_cluster(data_window, blurred_window, blurred_window, blur_thresh=.3)
+    sys.exit(g.app.exec_())  # This is required to run outside of Spyder or PyCharm

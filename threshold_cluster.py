@@ -566,7 +566,10 @@ class PuffAnalyzer(QWidget):
                 g.m.currentTrace.p1.removeItem(self.redTraces[i][0])
             g.m.currentTrace.finishedDrawingSignal.disconnect(self.drawRedOverlay)
             g.m.currentTrace.p1.scene().sigMouseClicked.disconnect(self.clickedTrace)
-            g.m.currentTrace.keyPressSignal.disconnect(self.keyPressEvent)
+            try:
+                g.m.currentTrace.keyPressSignal.disconnect(self.keyPressEvent)
+            except TypeError:
+                pass
         self.data_window.keyPressSignal.disconnect(self.keyPressEvent)
         if not self.data_window.closed:
             self.data_window.sigTimeChanged.disconnect(self.updateTime) 
@@ -580,6 +583,7 @@ class PuffAnalyzer(QWidget):
                 del self.data_window
         if self in g.m.windows:
             g.m.windows.remove(self)
+        self.puffs = None
 
     def autoGroupEvents(self,radius=np.sqrt(2)):
         groups=self.groups[:]
@@ -868,7 +872,6 @@ class PuffAnalyzer(QWidget):
         puff.plot(self.trace_plot)
         self.updateScatter()
         self.drawRedOverlay()
-
 
     def export_gui(self):
         filename=g.settings['filename']

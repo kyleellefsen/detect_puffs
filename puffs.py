@@ -98,7 +98,7 @@ class Puffs:
    
 class Puff:
     def __init__(self,starting_idx,clusters,puffs,persistentInfo=None):
-        print('Creating event {}/{}'.format(starting_idx, len(clusters.clusters)-1))
+        print('Creating event {}/{}'.format(starting_idx+1, len(clusters.clusters)))
         self.starting_idx=starting_idx
         self.clusters=clusters
         self.puffs=puffs
@@ -166,6 +166,8 @@ class Puff:
         def getFitParams(idx):
             xorigin,yorigin=self.clusters.origins[idx,1:]-np.array([x0,y0])
             sigma=self.clusters.standard_deviations[idx]
+            if sigma < 1:
+                sigma = 1
             x_lower=xorigin-sigma; x_upper=xorigin+sigma; y_lower=yorigin-sigma; y_upper=yorigin+sigma
             amplitude=np.max(I)/2
             sigma=3
