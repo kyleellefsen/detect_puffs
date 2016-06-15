@@ -29,7 +29,7 @@
        </property>
        <widget class="QWidget" name="tab">
         <attribute name="title">
-         <string>Density Threshold</string>
+         <string>Blur Threshold</string>
         </attribute>
         <layout class="QGridLayout" name="gridLayout_3">
          <item row="0" column="0">
@@ -87,7 +87,7 @@
               </sizepolicy>
              </property>
              <property name="title">
-              <string>Density Movie</string>
+              <string>Blurred Movie</string>
              </property>
              <layout class="QGridLayout" name="gridLayout_4">
               <item row="0" column="0">
@@ -129,7 +129,7 @@
          <item row="0" column="0">
           <widget class="QGroupBox" name="circle_clusters_groupbox">
            <property name="title">
-            <string>Pixels Above Density Threshold</string>
+            <string>Pixels Above Blur Threshold</string>
            </property>
            <layout class="QGridLayout" name="gridLayout_6">
             <item row="0" column="0">
