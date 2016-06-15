@@ -32,26 +32,29 @@ time_factor=g.m.puffAnalyzer.udc['time_factor']
 from plugins.detect_puffs.higher_pts import *
 
 '''
-def getHigherPoints(Densities,density_thresh, time_factor):
+
+
+def getHigherPoints(blurred, udc):
     """"
     STRUCTURE OF HIGHER_PTS:
     ['Distance to next highest point, index of higher point, value of current point']
     """
-    
+    blur_thresh = udc['blur_thresh']
+    time_factor = udc['time_factor']
     nCores = g.settings['nCores']
-    idxs=np.where(Densities>density_thresh)
-    densities=Densities[idxs]
+    idxs=np.where(blurred>blur_thresh)
+    densities=blurred[idxs]
     densities_jittered=densities+np.arange(len(densities))/(2*np.float(len(densities))) #I do this so no two densities are the same, so each cluster has a peak.
-    C = np.zeros(Densities.shape )
-    C_idx=np.zeros(Densities.shape, dtype=np.int)
+    C = np.zeros(blurred.shape )
+    C_idx=np.zeros(blurred.shape, dtype=np.int)
     idxs=np.vstack((idxs[0],idxs[1],idxs[2])).T
-    C[idxs[:,0],idxs[:,1],idxs[:,2]]=densities_jittered
-    C_idx[idxs[:,0],idxs[:,1],idxs[:,2]]=np.arange(len(idxs))
+    C[idxs[:, 0], idxs[:, 1], idxs[:, 2]] = densities_jittered
+    C_idx[idxs[:, 0], idxs[:,1], idxs[:,2]] = np.arange(len(idxs))
     print("Number of pixels to analyze: {}".format(len(idxs)))
     remander=np.arange(len(idxs))
-    nTotal_pts=len(idxs)
-    block_ends=np.linspace(0,len(remander),nCores+1).astype(np.int)
-    data_blocks=[remander[block_ends[i]:block_ends[i+1]] for i in np.arange(nCores)]
+    nTotal_pts = len(idxs)
+    block_ends = np.linspace(0, len(remander), nCores+1, dtype=np.int)
+    data_blocks = [remander[block_ends[i]:block_ends[i+1]] for i in np.arange(nCores)]
     
 
     if g.settings['multiprocessing']:
@@ -68,14 +71,14 @@ def getHigherPoints(Densities,density_thresh, time_factor):
         higher_pts=getHigherPointSingleProcess(args,remander)
         
         
-    mt,mx,my=Densities.shape
-    maxDistance=np.sqrt((mt/time_factor)**2 + mx**2 + my**2)
-    remander=np.argwhere(higher_pts[:,0]==0)
+    mt,mx,my = blurred.shape
+    maxDistance = np.sqrt((mt/time_factor)**2 + mx**2 + my**2)
+    remander = np.argwhere(higher_pts[:,0] == 0)
     remander=remander.T[0]
-    if len(remander)==1:
-        ii=remander[0]
-        higher_pts[ii]=[maxDistance, ii, densities_jittered[ii]]
-    elif len(remander)>1:
+    if len(remander) == 1:
+        ii = remander[0]
+        higher_pts[ii] = [maxDistance, ii, densities_jittered[ii]]
+    elif len(remander) > 1:
         if True:
             dens2=densities_jittered[remander]
             possible_higher_pts=np.where(densities_jittered>np.min(dens2))[0]
@@ -108,7 +111,7 @@ def getHigherPoints(Densities,density_thresh, time_factor):
                 possible_higher_pts=np.where(densities_jittered>density)[0]            
                 pos1=idxs_time_adjusted[current_pt]
                 pos2=idxs_time_adjusted[possible_higher_pts]
-                Dsq=np.sum((pos2-pos1)**2,1)
+                Dsq=np.sum((pos2-pos1)**2, 1)
                 higher_pt=possible_higher_pts[np.argmin(Dsq)]
                 d=np.sqrt(np.min(Dsq))
                 higher_pts[current_pt] = [d, higher_pt, density]
@@ -125,7 +128,7 @@ def getHigherPoints(Densities,density_thresh, time_factor):
             idxs_time_adjusted=idxs[:].astype(np.float)
             idxs_time_adjusted[:,0]=idxs_time_adjusted[:,0]/time_factor
             for times_remander_block in times_remander_blocks:   # times_remander_block is the 
-                density_block=densities_jittered[remander_block]
+                density_block=densities_jittered[times_remander_block]
                 possible_higher_pts=np.where(densities_jittered>np.min(density_block))[0]
                 
                 
@@ -138,7 +141,7 @@ def getHigherPoint(q_results, q_progress, q_status, child_conn, args):
     status=q_status.get(True) #this blocks the process from running until all processes are launched
     if status=='Stop':
         q_results.put(None) # if the user presses stop, return None
-    nTotal_pts, C, idxs, densities_jittered, C_idx, time_factor=args
+    nTotal_pts, C, idxs, densities_jittered, C_idx, time_factor = args
     mt,mx,my=C.shape
     higher_pts=np.zeros((nTotal_pts,3)) #['Distance to next highest point, index of higher point, value of current point']
     nTotal=len(remander)

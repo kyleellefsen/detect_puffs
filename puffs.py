@@ -34,7 +34,7 @@ class Puffs:
         self.puffs=[]
         self.index=0
         self.clusters=clusters
-        self.highpass_window=puffAnalyzer.highpass_window
+        self.normalized_window=puffAnalyzer.normalized_window
         self.data_window=puffAnalyzer.data_window
         self.cluster_im=cluster_im
         
@@ -143,7 +143,7 @@ class Puff:
         self=g.m.puffAnalyzer.puffs.getPuff()
         from plugins.detect_puffs.threshold_cluster import *
         [(t0,t1),(x0,x1),(y0,y1)]=self.bounds
-        mt,mx,my=self.puffs.highpass_window.image.shape
+        mt,mx,my=self.puffs.normalized_window.image.shape
         '''
         
         bb=self.bounds
@@ -160,7 +160,7 @@ class Puff:
                     if np.any(np.intersect1d(np.arange(cluster[0,2],cluster[1,2]),np.arange(y0,y1))):
                         if idx != self.starting_idx:
                             self.sisterPuffs.append(idx)
-        I=self.puffs.highpass_window.image[bb[0][0]:bb[0][1]+1,bb[1][0]:bb[1][1]+1,bb[2][0]:bb[2][1]+1]
+        I=self.puffs.normalized_window.image[bb[0][0]:bb[0][1]+1,bb[1][0]:bb[1][1]+1,bb[2][0]:bb[2][1]+1]
         I=np.mean(I,0)
         
         def getFitParams(idx):
@@ -212,12 +212,12 @@ class Puff:
         #######################################################################
         #############          FIND PEAK       ########################
         #######################################################################
-        if amplitude==0:
-            I_norm=np.zeros(self.gaussianFit.shape)
-            I_norm2=np.zeros(self.gaussianFit.shape)
+        if amplitude == 0:
+            I_norm = np.zeros(self.gaussianFit.shape)
+            I_norm2 = np.zeros(self.gaussianFit.shape)
         else:
-            I_norm=I_fit/np.sum(I_fit)
-            I_norm2=I_fit2/np.sum(I_fit2)
+            I_norm = I_fit/np.sum(I_fit)
+            I_norm2 = I_fit2/np.sum(I_fit2)
             
 
         #I=self.puffs.highpass_im[before:after+1,bb[1][0]:bb[1][1]+1,bb[2][0]:bb[2][1]+1]

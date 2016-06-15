@@ -11,6 +11,7 @@ import numpy as np
 import global_vars as g
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
+from PyQt4.QtGui import qApp
 import pyqtgraph as pg
 import matplotlib
 from window import Window #to display any 3d array in Flika, just call Window(array_name)
@@ -50,7 +51,7 @@ from plugins.detect_puffs.clusters import *
 cluster_movie=g.m.currentWindow
 '''
 class Clusters():
-    def __init__(self,higher_pts,idxs,movieShape,puffAnalyzer,persistentInfo=None):
+    def __init__(self,higher_pts, idxs, movieShape, puffAnalyzer, persistentInfo=None):
         self.persistentInfo=persistentInfo
         if persistentInfo is not None:
             self.idxs=persistentInfo.pixel_idxs
@@ -65,25 +66,22 @@ class Clusters():
             self.puffAnalyzer=puffAnalyzer
             self.vb=ClusterViewBox()
             self.pw=pg.PlotWidget(viewBox=self.vb)
-            higher_pts_tmp=self.higher_pts[self.higher_pts[:,0]>1]
-            y=[d[0] for d in higher_pts_tmp] #smallest distance to higher point
-            x=[d[2] for d in higher_pts_tmp] # density 
-            pts=np.array([x,np.log(y)]).T
-            
+            #  Only plot the points that are at least 1 pixel away from the next higher point, because pixels this close
+            #  are guaranteed to be clustered together.
+            higher_pts_tmp=self.higher_pts[self.higher_pts[:, 0] > 1]
+            y = [d[0] for d in higher_pts_tmp]  # smallest distance to higher point
+            x = [d[2] for d in higher_pts_tmp]  # density
+            pts = np.array([x,np.log(y)]).T
             self.scatterPlot=pg.ScatterPlotItem(size=5, pen=pg.mkPen([0,0,0,255]), brush=pg.mkBrush([0,0,255,255]))      
             self.scatterPlot.setPoints(pos=pts)
-            
             self.pw.addItem(self.scatterPlot)
-            #self.pw.plot(x,np.log(y), pen=None, symbolBrush=QBrush(Qt.blue), symbol='o')
-            self.pw.plotItem.axes['left']['item'].setLabel('Smallest distance to brighter pixel (natural logarithm)'); self.pw.plotItem.axes['bottom']['item'].setLabel('Pixel Intensity')
-            
-            layout=self.puffAnalyzer.algorithm_gui.circle_clusters_layout
+            self.pw.plotItem.axes['left']['item'].setLabel('Smallest distance to brighter pixel (natural logarithm)')
+            self.pw.plotItem.axes['bottom']['item'].setLabel('Pixel Intensity')
+            layout = self.puffAnalyzer.algorithm_gui.circle_clusters_layout
             for i in reversed(range(layout.count())):
                 layout.itemAt(i).widget().setParent(None)
             layout.addWidget(self.pw)
-        
             self.vb.drawFinishedSignal.connect(self.manuallySelectClusterCenters)
-            #self.vb.EnterPressedSignal.connect(self.finished)
             self.puffAnalyzer.algorithm_gui.fitGaussianButton.pressed.connect(self.finished)
         
     def getPuffs(self):
@@ -104,7 +102,10 @@ class Clusters():
         self.bounds=np.array(bounds)
         self.standard_deviations=np.array(standard_deviations)
         self.origins=np.array(origins)
-        
+
+        if self.puffAnalyzer.puffs is not None:
+            self.puffAnalyzer.close()
+
         if self.persistentInfo is None:
             self.puffAnalyzer.puffs=Puffs(self,self.cluster_im,self.puffAnalyzer)
             self.puffAnalyzer.preSetupUI()
@@ -120,61 +121,61 @@ class Clusters():
     def manuallySelectClusterCenters(self):
         if self.puffAnalyzer.generatingClusterMovie:
             return
-        self.puffAnalyzer.generatingClusterMovie=True
-        self.puffAnalyzer.algorithm_gui.tabWidget.setCurrentIndex(2)
-        centers=[]
-        outsideROI=[]
-        for i in np.arange(len(self.higher_pts))[self.higher_pts[:,0]>1]:
-            y=np.log(self.higher_pts[i][0])#smallest distance to higher point
-            x=self.higher_pts[i][2]# density 
-            if self.vb.currentROI.contains(x,y):
+        self.puffAnalyzer.generatingClusterMovie = True
+        centers = []
+        outsideROI = []
+        #  Only plot the points that are at least 1 pixel away from the next higher point, because pixels this close
+        #  are guaranteed to be clustered together.
+        for i in np.arange(len(self.higher_pts))[self.higher_pts[:, 0] > 1]:
+            y = np.log(self.higher_pts[i][0])  # smallest distance to higher point
+            x = self.higher_pts[i][2]  # density
+            if self.vb.currentROI.contains(x, y):
                 centers.append(i)
             else:
                 outsideROI.append(i)
-        
-        higher_pts2=self.higher_pts[:,1].astype(np.int)
-        points=[Point(i,self.idxs) for i in np.arange(len(higher_pts2))]
+        higher_pts2 = self.higher_pts[:, 1].astype(np.int)
+        points=[Point(i, self.idxs) for i in np.arange(len(higher_pts2))]
         loop=np.arange(len(higher_pts2))
         loop=np.delete(loop,centers)
         for i in loop:
-            if higher_pts2[i]!=i:
+            if higher_pts2[i] != i:
                 points[higher_pts2[i]].children.append(points[i])
-        
-
         self.scatterPlot.clear()
         pts_outsideROI=np.array([self.higher_pts[outsideROI,2], np.log(self.higher_pts[outsideROI,0])]).T
         self.scatterPlot.addPoints(pos=pts_outsideROI, brush=pg.mkBrush([0,0,255,255]))
-        pts_centers_with_large_cluster=np.array([self.higher_pts[centers,2], np.log(self.higher_pts[centers,0])]).T
-        self.scatterPlot.addPoints(pos=pts_centers_with_large_cluster, brush=pg.mkBrush([0,255,0,255]))
+        pts_centers_with_large_cluster=np.array([self.higher_pts[centers, 2], np.log(self.higher_pts[centers,0])]).T
+        self.scatterPlot.addPoints(pos=pts_centers_with_large_cluster, brush=pg.mkBrush([0, 255, 0, 255]))
         qApp.processEvents()
-        
-        
-        
-        
+        if len(centers) == 0:
+            self.puffAnalyzer.generatingClusterMovie = False
+            return None
+
+        self.puffAnalyzer.algorithm_gui.tabWidget.setCurrentIndex(2)
         self.clusters=[]
         for i, center in enumerate(centers):
             descendants=points[center].getDescendants()
             cluster=[d.idx for d in descendants]
             cluster=np.array(cluster+[center])
             self.clusters.append(cluster)
-
+        '''
         for i, cluster in enumerate(self.clusters):
             pos = self.idxs[cluster]
             mean_pos = np.mean(pos, 0)
-            values = np.exp(self.puffAnalyzer.denseWindow.image[pos[:, 0], pos[:, 1], pos[:, 2]])
+            values = np.exp(self.puffAnalyzer.blurred_window.image[pos[:, 0], pos[:, 1], pos[:, 2]])
             mean_pos = np.dot(values, pos) / np.sum(values)
             distances_from_center = np.sqrt(np.sum((pos[:, 1:] - mean_pos[1:]) ** 2, 1))
             times_from_center = np.abs(pos[:, 0] - mean_pos[0])
             pos_to_keep = np.logical_and(times_from_center <= self.puffAnalyzer.udc['maxPuffDiameter'],
                                          distances_from_center <= self.puffAnalyzer.udc['maxPuffLen'])
             self.clusters[i] = cluster[pos_to_keep]
-        for i in np.arange(len(self.clusters),0,-1)-1:
+        '''
+        for i in np.arange(len(self.clusters), 0, -1)-1:
             if len(self.clusters[i])==0:
                 del self.clusters[i]
         
         self.cluster_im = self.make_cluster_im()
         self.cluster_movie=Window(self.cluster_im, 'Cluster Movie')
-        self.cluster_movie.link(self.puffAnalyzer.denseWindow)
+        self.cluster_movie.link(self.puffAnalyzer.blurred_window)
         
         sizes=np.array([len(cluster) for cluster in self.clusters])
         sizes_bin=np.histogram(sizes,bins=np.arange(np.max(sizes)+1))
@@ -191,6 +192,7 @@ class Clusters():
         
         self.set_thresh_button = self.puffAnalyzer.algorithm_gui.threshold_button_2
         self.set_thresh_button.clicked.connect(self.set_threshold)
+        self.puffAnalyzer.algorithm_gui.nClusters.setText('Number of Clusters: {}'.format(len(self.clusters)))
         self.puffAnalyzer.generatingClusterMovie=False
         
     def make_cluster_im(self):
@@ -200,36 +202,41 @@ class Clusters():
             cluster_im=np.zeros((mt,mx,my,4),dtype=np.float16)
         except MemoryError:
             print('There is not enough memory to create the image of clusters (error in function clusters.make_cluster_im).')
+            return None
         for i, cluster in enumerate(self.clusters):
-            color=cmap(int(((i%5)*255./6)+np.random.randint(255./12)))
-            pos=self.idxs[cluster]
-            cluster_im[pos[:,0],pos[:,1], pos[:,2],:] = color
+            color = cmap(int(((i%5)*255./6)+np.random.randint(255./12)))
+            pos = self.idxs[cluster]
+            cluster_im[pos[:, 0], pos[:, 1], pos[:, 2], :] = color
         return cluster_im
         
     def set_threshold(self):
-        threshold=self.thresh_line.value()
-        n=0
+        threshold = self.thresh_line.value()
+        n = 0
         for i, cluster in enumerate(self.clusters):
-            if len(cluster)>threshold:
-                n+=1
-                color=cmap(int(((n%5)*255./6)+np.random.randint(255./12)))
+            if len(cluster) > threshold:
+                n += 1
+                color=cmap(int(((n % 5)*255./6)+np.random.randint(255./12)))
             else:
                 color = np.zeros(4)
-            pos=self.idxs[cluster]
-            self.cluster_im[pos[:,0],pos[:,1], pos[:,2],:] = color
+            pos = self.idxs[cluster]
+            self.cluster_im[pos[:, 0], pos[:, 1], pos[:,2], :] = color
         self.puffAnalyzer.algorithm_gui.nClusters.setText('Number of Clusters: {}'.format(n))
-        self.cluster_movie.setIndex(self.cluster_movie.currentIndex)  #this forces the movie to refresh
+        self.cluster_movie.setIndex(self.cluster_movie.currentIndex)  # This forces the movie to refresh
+        self.puffAnalyzer.algorithm_gui.tabWidget.setCurrentIndex(3)
                 
 
 class ClusterViewBox(pg.ViewBox):
     drawFinishedSignal=Signal()
     EnterPressedSignal=Signal()
+
     def __init__(self, *args, **kwds):
         pg.ViewBox.__init__(self, *args, **kwds)
         self.currentROI=None
+
     def keyPressEvent(self,ev):
         if ev.key() == Qt.Key_Enter or ev.key() == Qt.Key_Return:
             self.EnterPressedSignal.emit()
+
     def mouseDragEvent(self, ev):
         if ev.button() == Qt.RightButton:
             ev.accept()

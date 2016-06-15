@@ -1,8 +1,21 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Sep 02 16:54:20 2014
-
 @author: Kyle Ellefsen
+
+The logic of the puff detection algorithm works like this.  We start with three movies:
+1) F/F0 Movie
+2) Normalized Movie
+3) Blurred Movie
+
+These get passed into the threshold_cluster() function, which creates the algorithm_gui.
+The algorithm_gui waits for the 'Set Threshold' button to be pressed, and then calls the getClusters function.
+The getClusters() function calls getHigherPoints.  It then creates the clusters object, which in turn creates the ClusterViewBox which displays the higher_pts and can be drawn on.
+Once a set of the higher_pts have been circled, the clusters object calls its manuallySelectClusterCenters and makes the cluster_im window, which displays the colored clusters.
+Once the clusters are created and thresholded by size, pressing the button 'Fit Gaussians' tells the clusters object to create a Puffs object and fit each cluster to a gaussian function.
+These puffs are displayed on the F/F0 movie as points.
+
+
 """
 
 import numpy as np
@@ -10,12 +23,12 @@ import global_vars as g
 from process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
 from PyQt4.QtGui import *
 from PyQt4.QtCore import *
+from PyQt4.QtGui import qApp
 from PyQt4 import uic
 from window import Window #to display any 3d array in Flika, just call Window(array_name)
 import pyqtgraph as pg
 from scipy import ndimage
 from .puffs import Puffs, Puff
-from .densities import getDensities
 from .higher_pts import getHigherPoints
 from .clusters import Clusters, ClusterViewBox, ROI
 import pyqtgraph.opengl as gl
@@ -87,13 +100,13 @@ def load_flika_file(filename=None):
 
 
 class Threshold_cluster(BaseProcess):
-    '''threshold_cluster(binary_window, data_window, highpass_window, roi_width, paddingXY, paddingT_pre, paddingT_post, maxSigmaForGaussianFit, rotatedfit)
+    """threshold_cluster(data_window, normalized_window, blurred_window, roi_width, paddingXY, paddingT_pre, paddingT_post, maxSigmaForGaussianFit, rotatedfit)
     Performs lots of analyses on puffs
     
     Parameters:
-        | binary_window (Window) -- Usually the thresholded version of the highpass_window.  If you've already calculated a density image, you can pass that in instead and we will skip the density calculation step
         | data_window (Window) --  This Window is the F/F0 window
-        | highpass_window (Window) -- This Window should have the baseline at 0.  It will be used for gaussian fitting and kinetics.    
+        | normalized_window (Window) -- This Window should have the baseline at 0.  It will be used for gaussian fitting and kinetics.
+        | blurred_window (Window) -- Usually the thresholded version of the highpass_window.
         | roi_width (int) -- The width of the ROI in pixels
         | paddingXY (int) -- How many pixels do you want to pad the ROI by when fitting with gaussian
         | paddingT_pre (int) -- How many frames before the event detection should we look for the start of the event.
@@ -103,14 +116,15 @@ class Threshold_cluster(BaseProcess):
         | radius (float) -- Puffs seperated by less than this amount (in pixels) will be grouped together in a group.
         | maxPuffLen (int) -- maximum possible duration of puff length in frames.  If puffs last longer, use a bigger value.  This affects 'chunking' when determining distances between pixels.  It's better to overestimate, although increasing too much will slow down analysis.
         | maxPuffDiameter (int) -- This affects 'chunking' when determining distances between pixels.    This value divided by two is also used as the radius for calculating densities
-        | density_threshold (float) -- Get rid of all the points you are sure don't belong to puffs.  
+        | blur_thresh (float) -- Get rid of all the points you are sure don't belong to puffs.
         | time_factor (float) -- When looking for the nearest point of higher density, time and space don't need to be weighted equally.  This is how much I will 'shrink' time in order to calculate distances relative to pixels.  Practically, the larger this number, the more points separated in time will tend to be clustered together.  Use a higher time factor if you are sampling at high frame rates.  
         | load_flika_file (bool) -- If this is checked, the flika file with the same name as the data_window file will be loaded, if it exists.
     Returns:
         newWindow
-    '''
+    """
     def __init__(self):
         super().__init__()
+
     def gui(self):
         self.gui_reset()
         binary_window=WindowSelector()
@@ -138,9 +152,9 @@ class Threshold_cluster(BaseProcess):
         maxPuffDiameter=SliderLabel(0)
         maxPuffDiameter.setRange(1,100)
         maxPuffDiameter.setValue(10)
-        density_threshold=SliderLabel(2)
-        density_threshold.setRange(1,6)
-        density_threshold.setValue(2.7)
+        blur_thresh=SliderLabel(2)
+        blur_thresh.setRange(1,6)
+        blur_thresh.setValue(2.7)
         time_factor=SliderLabel(3)
         time_factor.setRange(0,20)
         time_factor.setValue(1)
@@ -149,7 +163,10 @@ class Threshold_cluster(BaseProcess):
         if 'threshold_cluster_settings' in g.settings.d.keys():
             varDict=g.settings['threshold_cluster_settings']
             for key in varDict.keys():
-                eval(key+'.setValue('+str(varDict[key])+')')
+                try:
+                    eval(key+'.setValue('+str(varDict[key])+')')
+                except NameError:
+                    pass
         self.items.append({'name':'binary_window','string':'Binary window containing puffs','object':binary_window})
         self.items.append({'name':'data_window','string':'Data window containing F/F0 data','object':data_window})
         self.items.append({'name':'highpass_window','string':'High pass window containing data with baseline at 0','object':highpass_window})
@@ -162,133 +179,116 @@ class Threshold_cluster(BaseProcess):
         self.items.append({'name':'radius','string':'radius','object':radius})
         self.items.append({'name':'maxPuffLen','string':'maxPuffLen','object':maxPuffLen})
         self.items.append({'name':'maxPuffDiameter','string':'maxPuffDiameter','object':maxPuffDiameter})
-        self.items.append({'name':'density_threshold','string':'density_threshold','object':density_threshold})
+        self.items.append({'name':'blur_thresh','string':'blur_thresh','object':blur_thresh})
         self.items.append({'name':'time_factor','string':'time_factor','object':time_factor})
         self.items.append({'name':'load_flika_file','string':'load_flika_file','object':load_flika_file})
         super().gui()
         self.ui.setGeometry(QRect(676, 55, 1231, 822))
-    def __call__(self,binary_window, data_window, highpass_window, roi_width=3,paddingXY=20,paddingT_pre=15, paddingT_post=15,maxSigmaForGaussianFit=10, rotatedfit=True, radius=np.sqrt(2), maxPuffLen=15, maxPuffDiameter=10, density_threshold=None, time_factor=1, load_flika_file=True, keepSourceWindow=False):
+
+    def __call__(self, data_window, normalized_window, blurred_window, roi_width=3, paddingXY=20, paddingT_pre=15,
+                 paddingT_post=15, maxSigmaForGaussianFit=10, rotatedfit=True, radius=np.sqrt(2), maxPuffLen=15,
+                 maxPuffDiameter=10, blur_thresh=None, time_factor=1, load_flika_file=True, keepSourceWindow=False):
         g.m.statusBar().showMessage('Performing {}...'.format(self.__name__))
-        filename=data_window.filename
-        filename=os.path.splitext(filename)[0]+'.flika'
+        filename = data_window.filename
+        filename = os.path.splitext(filename)[0]+'.flika'
         if load_flika_file and os.path.isfile(filename):
             print('Found persistentInfo file.  Loading previous results')
             with bz2.BZ2File(filename, 'rb') as f:
-                persistentInfo=pickle.load(f)
-            puffAnalyzer=PuffAnalyzer(data_window,None,highpass_window,None,persistentInfo)
+                persistentInfo = pickle.load(f)
+            puffAnalyzer = PuffAnalyzer(data_window, None, normalized_window, None, persistentInfo)
         else:
             udc=dict()
-            udc['roi_width']=roi_width
-            udc['paddingXY']=paddingXY
-            udc['paddingT_pre']=paddingT_pre
-            udc['paddingT_post']=paddingT_post
-            udc['maxSigmaForGaussianFit']=maxSigmaForGaussianFit
-            udc['rotatedfit']=rotatedfit
-            udc['radius']=radius #radius -- all puffs this distance away (measured in pixels) from each other will automatically be grouped together into a group
-            udc['maxPuffLen']=maxPuffLen
-            udc['maxPuffDiameter']=maxPuffDiameter
-            if density_threshold is None:
+            udc['roi_width'] = roi_width
+            udc['paddingXY'] = paddingXY
+            udc['paddingT_pre'] = paddingT_pre
+            udc['paddingT_post'] = paddingT_post
+            udc['maxSigmaForGaussianFit'] = maxSigmaForGaussianFit
+            udc['rotatedfit'] = rotatedfit
+            udc['radius'] = radius  # radius -- all puffs this distance away (measured in pixels) from each other will automatically be grouped together into a group
+            udc['maxPuffLen'] = maxPuffLen
+            udc['maxPuffDiameter'] = maxPuffDiameter
+            if blur_thresh is None:
                 if 'threshold_cluster_settings' in g.settings.d.keys():
-                    density_threshold=g.settings['threshold_cluster_settings']['density_threshold']
+                    blur_thresh = g.settings['threshold_cluster_settings']['blur_thresh']
                 else:
-                    density_threshold=2.7
-            udc['density_threshold']=density_threshold
-            udc['time_factor']=time_factor
-            puffAnalyzer = PuffAnalyzer(data_window,binary_window,highpass_window,udc)
+                    blur_thresh = 2.7
+            udc['blur_thresh'] = blur_thresh
+            udc['time_factor'] = time_factor
+            puffAnalyzer = PuffAnalyzer(data_window, normalized_window, blurred_window, udc)
         g.m.windows.append(puffAnalyzer)
         g.m.statusBar().showMessage('Finished with {}.'.format(self.__name__))
         return puffAnalyzer
 
 
-threshold_cluster=Threshold_cluster()
+threshold_cluster = Threshold_cluster()
 
 
 def threshold_cluster_gui():
     threshold_cluster.gui()
 
 
-def getDensities_wrapper(puffAnalyzer):
-    if puffAnalyzer.Densities is None: #if we aren't skipping the density calculation step because we loaded in a density window already.
-        bin_image=puffAnalyzer.binary_window.image
-        norm_image=puffAnalyzer.highpass_window.image
-        maxPuffLen=puffAnalyzer.udc['maxPuffLen']# default: 15 
-        maxPuffDiameter=puffAnalyzer.udc['maxPuffDiameter']# default: 10
-        puffAnalyzer.Densities=getDensities(bin_image, norm_image, maxPuffLen, maxPuffDiameter)
-    denseWindow=Window(puffAnalyzer.Densities,name='Density Window')
-    puffAnalyzer.algorithm_gui.density_movie_layout.addWidget(denseWindow)
-    puffAnalyzer.denseWindow=denseWindow
-    denseWindow.thresh_slider=puffAnalyzer.algorithm_gui.thresh_slider
-    denseWindow.thresh_slider.setValue(puffAnalyzer.udc['density_threshold'])
-    denseWindow.thresh_button=puffAnalyzer.algorithm_gui.thresh_button1
-    puffAnalyzer.algorithm_gui.paddingXY.setText(str(puffAnalyzer.udc['paddingXY']))
-    puffAnalyzer.algorithm_gui.maxSigmaForGaussianFit.setText(str(puffAnalyzer.udc['maxSigmaForGaussianFit']))
-    puffAnalyzer.algorithm_gui.rotatedfit.setText(str(puffAnalyzer.udc['rotatedfit']))
-    denseWindow.thresh_button.pressed.connect(getClusters)
-
-
-def getClusters():
-    puffAnalyzer=g.m.puffAnalyzer
-    if puffAnalyzer.gettingClusters:
-        return None
-    puffAnalyzer.gettingClusters=True
-    Densities = puffAnalyzer.Densities
-    puffAnalyzer.udc['density_threshold']=puffAnalyzer.denseWindow.thresh_slider.value()
-    density_thresh = puffAnalyzer.udc['density_threshold'] # I come up with thresholds by looking at it, but there is a way to emperically determine what probability this corresponds to by using the binomial theorem, the number of voxels in our sphere, and the fact that only .1% of pixels will randomly be True
-    time_factor=puffAnalyzer.udc['time_factor'] #1 #this is how much I will 'shrink' time in order to calculate distances relative to pixels    
-    higher_pts, idxs = getHigherPoints(Densities,density_thresh, time_factor)
-    puffAnalyzer.algorithm_gui.tabWidget.setCurrentIndex(1); qApp.processEvents()
-    puffAnalyzer.clusters=Clusters(higher_pts,idxs,Densities.shape, puffAnalyzer)
-    puffAnalyzer.gettingClusters=False
-    puffAnalyzer.algorithm_gui.tabWidget.setCurrentIndex(1); qApp.processEvents()
-
-
 class PuffAnalyzer(QWidget):
-    def __init__(self,data_window,binary_window,highpass_window,udc,persistentInfo=None,parent=None):
-        '''udc -- all the user defined constants'''
-        super(PuffAnalyzer,self).__init__(parent) ## Create window with ImageView widget
-        g.m.puffAnalyzer=self
-        self.name='Puff Analyzer'
+    def __init__(self, data_window, normalized_window, blurred_window, udc, persistentInfo=None, parent=None):
+        """ udc -- all the user defined constants """
+        super(PuffAnalyzer,self).__init__(parent)  # Create window with ImageView widget
+        g.m.puffAnalyzer = self
+        self.name = 'Puff Analyzer'
         self.setWindowIcon(QIcon('images/favicon.png'))
-        self.data_window=data_window
-        self.binary_window=binary_window
-        self.highpass_window=highpass_window
-        self.mt, self.mx,self.my = self.data_window.image.shape
-        self.l=None
-        self.gettingClusters=False
-        self.generatingClusterMovie=False
-        
-        self.algorithm_gui = uic.loadUi(os.path.join(os.getcwd(),'plugins','detect_puffs','threshold_cluster.ui'))
+        self.data_window = data_window
+        self.normalized_window = normalized_window
+        self.blurred_window = blurred_window
+        self.udc = udc
+        self.mt, self.mx, self.my = self.data_window.image.shape
+        self.puffs = None
+        self.l = None
+        self.trash = None
+        self.clusters = None
+        self.groups = None
+        self.gettingClusters = False
+        self.generatingClusterMovie = False
+        self.algorithm_gui = uic.loadUi(os.path.join(os.getcwd(), 'plugins', 'detect_puffs', 'threshold_cluster.ui'))
         self.algorithm_gui.setWindowIcon(QIcon('images/favicon.png'))
-
         self.algorithm_gui.show()
-        
         if persistentInfo is not None:
             if 'roi_width' not in persistentInfo.udc.keys():
-                persistentInfo.udc['roi_width']=3
+                persistentInfo.udc['roi_width'] = 3
             self.loadPersistentInfo(persistentInfo)
         else:
-            self.udc=udc
-            if set(np.unique(binary_window.image)) != set([0,1]): #tests if image is not boolean
-                self.Densities=binary_window.image
-                self.binary_window.close()
-            else:
-                self.Densities=None
-            getDensities_wrapper(self) #getDensities calls setupUI after it is finished
+            self.algorithm_gui.density_movie_layout.addWidget(self.blurred_window)
+            self.algorithm_gui.thresh_slider.setValue(udc['blur_thresh'])
+            self.algorithm_gui.paddingXY.setText(str(udc['paddingXY']))
+            self.algorithm_gui.maxSigmaForGaussianFit.setText(str(udc['maxSigmaForGaussianFit']))
+            self.algorithm_gui.rotatedfit.setText(str(udc['rotatedfit']))
+            self.algorithm_gui.thresh_button1.pressed.connect(self.getClusters)
 
-    def loadPersistentInfo(self,persistentInfo):
-        self.udc=persistentInfo.udc
-        self.clusters=Clusters(None,None,None,self,persistentInfo)
-        self.groups=Groups(self)
+    def getClusters(self):
+        if self.gettingClusters:
+            return None
+        self.gettingClusters = True
+        self.udc['blur_thresh'] = self.algorithm_gui.thresh_slider.value()
+        blurred = self.blurred_window.image
+        higher_pts, idxs = getHigherPoints(blurred, self.udc)
+        self.algorithm_gui.tabWidget.setCurrentIndex(1)
+        qApp.processEvents()
+        self.clusters = Clusters(higher_pts, idxs, blurred.shape, self)
+        self.algorithm_gui.tabWidget.setCurrentIndex(1)
+        qApp.processEvents()
+        self.gettingClusters = False
+
+    def loadPersistentInfo(self, persistentInfo):
+        self.udc = persistentInfo.udc
+        self.clusters = Clusters(None,None,None,self,persistentInfo)
+        self.groups = Groups(self)
         if hasattr(persistentInfo,'groups'):
             for i in np.arange(len(persistentInfo.groups)):
                 self.groups.append(Group([puff for puff in g.m.puffAnalyzer.puffs.puffs if puff.starting_idx in persistentInfo.groups[i]]))
         else: # 'groups' used to be named 'sites'.  This is for legacy .flika files.
             for i in np.arange(len(persistentInfo.sites)):
                 self.groups.append(Group([puff for puff in g.m.puffAnalyzer.puffs.puffs if puff.starting_idx in persistentInfo.sites[i]]))
-        self.trash=Trash(self)
+        self.trash = Trash(self)
         for i in np.arange(len(persistentInfo.puffs)):
             if persistentInfo.puffs[i]['trashed']:
-                puff=[puff for puff in g.m.puffAnalyzer.puffs.puffs if puff.starting_idx==i][0]
+                puff=[puff for puff in g.m.puffAnalyzer.puffs.puffs if puff.starting_idx == i][0]
                 self.trash.append(puff)
                 self.puffs.puffs.remove(puff)
         self.setupUI()
@@ -404,9 +404,7 @@ class PuffAnalyzer(QWidget):
         create_s2()
         create_s3()
         
-        
-        
-        self.s4=pg.ScatterPlotItem(size=10, brush=pg.mkBrush(255, 255, 255, 120),pen=pg.mkPen([0,0,0,255]))
+        self.s4 = pg.ScatterPlotItem(size=5, brush=pg.mkBrush(255, 255, 255, 120), pen=pg.mkPen([0, 0, 0, 255]))
         view = pg.GraphicsLayoutWidget()
         self.d4.addWidget(view)
         self.scatter_viewbox=ScatterViewBox()
@@ -416,7 +414,9 @@ class PuffAnalyzer(QWidget):
         self.scatterPlot.addItem(self.s4)   
         self.lastClickedScatterPt = []
         self.s4.sigClicked.connect(self.clickedScatter)
-        
+        self.scatterPlot.axes['bottom']['item'].setLabel('Sigma of Puff Gaussian Fit (pixels)')
+        self.scatterPlot.axes['left']['item'].setLabel('Amplitude of Puff Trace (F/F0)')
+
         self.groupAnalyzer=None
         self.lastClicked = None
         self.linkTif()
@@ -454,7 +454,6 @@ class PuffAnalyzer(QWidget):
         starting_idx=p.data()
         curr_idx=[puff.starting_idx for puff in self.puffs].index(starting_idx)
         self.setCurrPuff(curr_idx)
-        print("clicked points", curr_idx)
 
     def updateScatter(self,X_axis='sigma',Y_axis='amplitude'):
         pst=PersistentInfo(self)
@@ -560,7 +559,6 @@ class PuffAnalyzer(QWidget):
     def close(self):
         if hasattr(self, 'roi'):
             if self.roi in self.data_window.rois:
-                self.data_window.closeSignal.disconnect(self.roi.delete)
                 self.roi.delete()
             del self.roi
         if g.m.currentTrace is not None:
@@ -569,11 +567,8 @@ class PuffAnalyzer(QWidget):
             g.m.currentTrace.finishedDrawingSignal.disconnect(self.drawRedOverlay)
             g.m.currentTrace.p1.scene().sigMouseClicked.disconnect(self.clickedTrace)
             g.m.currentTrace.keyPressSignal.disconnect(self.keyPressEvent)
-            
-            
         self.data_window.keyPressSignal.disconnect(self.keyPressEvent)
         if not self.data_window.closed:
-            
             self.data_window.sigTimeChanged.disconnect(self.updateTime) 
             self.data_window.imageview.view.removeItem(self.clusterItem)
             if self.data_window in g.m.windows:
@@ -858,19 +853,22 @@ class PuffAnalyzer(QWidget):
         print("This will eventually allow you to filter puffs by things like amplitude and duration, but I haven't implemented it yet")
 
     def widenPuffDurations(self):
-        puffs=self.puffs.puffs
-        mt=len(self.data_window.image)
+        puffs = self.puffs.puffs
+        mt = len(self.data_window.image)
         for puff in puffs:
-            puff.kinetics['t_start']-=1
-            if puff.kinetics['t_start']<0:
-                puff.kinetics['t_start']=0
-            puff.kinetics['t_end']+=1
-            if puff.kinetics['t_end']>=mt:
-                puff.kinetics['t_end']=mt-1
+            puff.kinetics['t_start'] -= 1
+            if puff.kinetics['t_start'] <0 :
+                puff.kinetics['t_start'] = 0
+            puff.kinetics['t_end'] += 1
+            if puff.kinetics['t_end'] >= mt:
+                puff.kinetics['t_end'] = mt-1
             puff.calcRiseFallTimes()
-        puff=self.puffs.getPuff()
+        puff = self.puffs.getPuff()
         self.trace_plot.clear()
         puff.plot(self.trace_plot)
+        self.updateScatter()
+        self.drawRedOverlay()
+
 
     def export_gui(self):
         filename=g.settings['filename']
