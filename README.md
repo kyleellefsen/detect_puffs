@@ -7,13 +7,17 @@ http://htmlpreview.github.io/?https://github.com/kyleellefsen/detect_puffs/blob/
 
 ### Sample Code ###
 ```python
-from plugins.detect_puffs.puff_simulator.puff_simulator import simulate_puffs
 from plugins.detect_puffs.threshold_cluster import threshold_cluster
-data_window=simulate_puffs(nFrames=1000,nPuffs=20)
-data_window=g.m.currentWindow
-norm_window=data_window
+from plugins.detect_puffs.puff_simulator.puff_simulator import simulate_puffs
+simulate_puffs(nFrames=1000,nPuffs=20)
+baseline = -5  # This is the mean pixel value in the absence of photons.
+subtract(baseline)
+data_window=ratio(0, 30, 'average')  # ratio(first_frame, nFrames, ratio_type). Now we are in F/F0
+data_window.setName('Data Window (F/F0)')
+norm_image = data_window.image - 1
+norm_window = Window(norm_image)
 norm_window.setName('Normalized Window')
-binary_window=threshold(1.1, keepSourceWindow=True)
-binary_window.setName('Binary Window')
-threshold_cluster(binary_window,data_window,norm_window,density_threshold=5.8)
+blurred_window = gaussian_blur(2, norm_edges=True, keepSourceWindow=True)
+blurred_window.setName('Blurred Window')
+threshold_cluster(data_window, blurred_window, blurred_window, blur_thresh=.1)
 ```
