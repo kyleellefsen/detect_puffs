@@ -223,10 +223,6 @@ class Threshold_cluster(BaseProcess):
 threshold_cluster = Threshold_cluster()
 
 
-def threshold_cluster_gui():
-    threshold_cluster.gui()
-
-
 class PuffAnalyzer(QWidget):
     def __init__(self, data_window, normalized_window, blurred_window, udc, persistentInfo=None, parent=None):
         """ udc -- all the user defined constants """
