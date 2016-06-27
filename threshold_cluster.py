@@ -532,7 +532,7 @@ class PuffAnalyzer(QWidget):
         r=(roi_width-1)/2
         x0=x-r; x1=x+r+1; y0=y-r; y1=y+r+1;
         pts=[(x0,y0),(x0,y1),(x1,y1),(x1,y0),(x0,y0)]
-        self.roi=makeROI('rectangle',pts,self.data_window, resizable=False)
+        self.roi=makeROI('rectangle',pts,self.data_window, resizable=True)
         #self.data_window.deleteButtonSignal.disconnect(self.roi.deleteCurrentROI)
         self.redTraces=[]
         self.data_window.keyPressSignal.connect(self.keyPressEvent)
@@ -541,6 +541,7 @@ class PuffAnalyzer(QWidget):
 
     def linkTracefig(self):
         g.m.currentTrace.finishedDrawingSignal.connect(self.drawRedOverlay) #hopefully this is not already connected
+        g.m.currentTrace.partialThreadUpdatedSignal.connect(self.drawRedOverlay)
         g.m.currentTrace.p1.scene().sigMouseClicked.connect(self.clickedTrace)
         g.m.currentTrace.keyPressSignal.connect(self.keyPressEvent)
         self.drawRedOverlay()
@@ -677,8 +678,8 @@ class PuffAnalyzer(QWidget):
         puff.plot(self.trace_plot)
         self.trace_plot.plotItem.autoRange()
         
-        rgnbounds=np.array(g.m.currentTrace.region.getRegion())
-        rgnbounds+=puff.kinetics['t_peak']-int(np.mean(rgnbounds))
+        rgnbounds = np.array(g.m.currentTrace.region.getRegion())
+        rgnbounds += puff.kinetics['t_peak']-int(np.mean(rgnbounds))
         g.m.currentTrace.region.setRegion(tuple(rgnbounds))
 #        
         if self.lastClicked is not None:
@@ -703,11 +704,12 @@ class PuffAnalyzer(QWidget):
         roi_index=g.m.currentTrace.get_roi_index(self.roi)
         g.m.currentTrace.update_trace_full(roi_index,trace)
         for roi in self.roi.linkedROIs:
-            roi.draw_from_points(pts)
-            roi.getMask()
-            trace=roi.getTrace()
-            roi_index=g.m.currentTrace.get_roi_index(roi)
-            g.m.currentTrace.update_trace_full(roi_index,trace)
+            if roi.traceWindow is not None:
+                roi.draw_from_points(pts)
+                roi.getMask()
+                trace=roi.getTrace()
+                roi_index=g.m.currentTrace.get_roi_index(roi)
+                g.m.currentTrace.update_trace_full(roi_index,trace)
         
         
         

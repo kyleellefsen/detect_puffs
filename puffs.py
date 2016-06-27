@@ -97,7 +97,7 @@ class Puffs:
    
 class Puff:
     def __init__(self,starting_idx,clusters,puffs,persistentInfo=None):
-        print('Creating event {}/{}'.format(starting_idx+1, len(clusters.clusters)))
+        #print('Creating event {}/{}'.format(starting_idx+1, len(clusters.clusters)))
         self.starting_idx=starting_idx
         self.clusters=clusters
         self.puffs=puffs
