@@ -691,7 +691,7 @@ class PuffAnalyzer(QWidget):
         # move the roi to that point
         self.roi.blockSignals(True)
         pts=self.roi.getPoints()
-        roi_pt=np.array([(pts[0][0]+pts[2][0])/2,(pts[0][1]+pts[2][1])/2])
+        roi_pt = np.min(pts,0)+.5*np.ptp(pts,0)
         puff_pt=np.array([puff.kinetics['x'],puff.kinetics['y']])
         difference=puff_pt-roi_pt
         
@@ -954,9 +954,11 @@ class PuffAnalyzer(QWidget):
             trace=np.mean(np.mean(trace,1),1)
             col=get_column_letter(groupN)
             sheet.cell(col+'1').value="Group #{}".format(groupN)
+            if trace.dtype == np.float16:
+                trace = trace.astype(np.float)
             for i in np.arange(len(trace)):
-                sheet.cell(col+str(i+2)).value=trace[i]
-            groupN+=1
+                sheet.cell(col+str(i+2)).value = trace[i]
+            groupN += 1
         
         sheet = workbook.create_sheet(title="Peak aligned Event Traces")
         groupN=1
@@ -964,10 +966,13 @@ class PuffAnalyzer(QWidget):
         for puff in self.puffs.puffs:
             col=get_column_letter(groupN)
             peak_idx=puff.kinetics['t_peak']-puff.kinetics['t_start']
-            for i in np.arange(len(puff.trace)):
+            trace = puff.trace
+            if trace.dtype == np.float16:
+                trace = trace.astype(np.float)
+            for i in np.arange(len(trace)):
                 offset=max_peak_idx-peak_idx
-                sheet.cell(col+str(offset+i+1)).value=puff.trace[i]
-            groupN+=1
+                sheet.cell(col+str(offset+i+1)).value = trace[i]
+            groupN += 1
         workbook.remove_sheet(workbook.worksheets[0]) #get rid of blank first worksheet
         workbook.save(filename)
         g.m.statusBar().showMessage('Successfully saved {}'.format(os.path.basename(filename)))
