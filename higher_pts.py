@@ -79,9 +79,9 @@ def getHigherPoints(blurred, udc):
         higher_pts[ii] = [maxDistance, ii, densities_jittered[ii]]
     elif len(remander) > 1:
         if True:
-            dens2=densities_jittered[remander]
-            possible_higher_pts=np.where(densities_jittered>np.min(dens2))[0]
-            dens3=densities_jittered[possible_higher_pts]
+            dens2 = densities_jittered[remander]
+            possible_higher_pts = np.where(densities_jittered>np.min(dens2))[0]
+            dens3 = densities_jittered[possible_higher_pts]
             pos1=idxs[remander].astype(np.float)
             pos1[:,0]=pos1[:,0]/time_factor
             pos2=idxs[possible_higher_pts].astype(np.float)

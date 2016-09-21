@@ -299,7 +299,7 @@ class PuffAnalyzer(QWidget):
         self.setupUI()
 
     def setupUI(self):
-        self.setWindowTitle('Puff Analyzer - {}'.format(os.path.basename(self.data_window.name)))
+        self.setWindowTitle('Puff Analyzer - {}'.format(self.data_window.name))
         self.setGeometry(QRect(360, 368, 1552, 351))
         
         
@@ -346,6 +346,8 @@ class PuffAnalyzer(QWidget):
         self.filterButton.pressed.connect(self.openFilterGUI)
         self.widenButton=QPushButton('Widen all puff durations')
         self.widenButton.pressed.connect(self.widenPuffDurations)
+        self.refitButton=QPushButton('Refit Gaussians')
+        self.refitButton.pressed.connect(self.refitGaussians)
         self.compareWithManualButton=QPushButton('Compare with manual pts')
         self.compareWithManualButton.pressed.connect(self.compareWithManual)
         self.exportButton=QPushButton('Export to Excel')
@@ -360,12 +362,13 @@ class PuffAnalyzer(QWidget):
         self.control_panel.addWidget(self.toggleGroupsButton,3,0)
         self.control_panel.addWidget(self.toggleTrashButton,4,0)
         self.control_panel.addWidget(self.widenButton,5,0)
-        self.control_panel.addWidget(self.filterButton,6,0)
-        self.control_panel.addWidget(self.exportButton,7,0)
-        self.control_panel.addWidget(self.toggle3DButton,8,0)
-        self.control_panel.addWidget(self.compareWithManualButton,9,0)
-        self.control_panel.addWidget(self.savePointsButton,10,0)
-        self.control_panel.addWidget(self.saveButton,11,0)
+        self.control_panel.addWidget(self.refitButton, 6, 0)
+        self.control_panel.addWidget(self.filterButton,7,0)
+        self.control_panel.addWidget(self.exportButton,8,0)
+        self.control_panel.addWidget(self.toggle3DButton,9,0)
+        self.control_panel.addWidget(self.compareWithManualButton, 10, 0)
+        self.control_panel.addWidget(self.savePointsButton, 11, 0)
+        self.control_panel.addWidget(self.saveButton, 12, 0)
         self.control_panelWidget=QWidget()
         self.control_panelWidget.setLayout(self.control_panel)
         self.d3.addWidget(self.control_panelWidget)
@@ -861,13 +864,23 @@ class PuffAnalyzer(QWidget):
         puffs = self.puffs.puffs
         mt = len(self.data_window.image)
         for puff in puffs:
-            puff.kinetics['t_start'] -= 1
-            if puff.kinetics['t_start'] <0 :
-                puff.kinetics['t_start'] = 0
-            puff.kinetics['t_end'] += 1
-            if puff.kinetics['t_end'] >= mt:
-                puff.kinetics['t_end'] = mt-1
-            puff.calcRiseFallTimes()
+            [(t0, t1), _, _] = puff.bounds
+            t0 -= 1
+            if t0 < 0:
+                t0 = 0
+            t1 += 1
+            if t1 >= mt:
+                t1 = mt-1
+            puff.bounds[0] = (t0,t1)
+            puff.kinetics = puff.calcRiseFallTimes(puff.kinetics)
+        puff = self.puffs.getPuff()
+        self.trace_plot.clear()
+        puff.plot(self.trace_plot)
+        self.updateScatter()
+        self.drawRedOverlay()
+
+    def refitGaussians(self):
+        self.puffs.refit_gaussians()
         puff = self.puffs.getPuff()
         self.trace_plot.clear()
         puff.plot(self.trace_plot)
