@@ -380,11 +380,9 @@ class PuffAnalyzer(QWidget):
         
         self.s1=pg.ScatterPlotItem(size=5, pen=pg.mkPen(None)) #PUFFS
         self.data_window.imageview.addItem(self.s1)
-        for puff in self.puffs.puffs:
-            x=puff.kinetics['x']
-            y=puff.kinetics['y']
-            self.s1.addPoints(pos=[[x,y]],data=puff, brush=pg.mkBrush(puff.color),pen=pg.mkPen([0,0,0,255]))
         self.s1.sigClicked.connect(self.clicked)
+        self.plot_puff_centroids(self.s1)
+
 
         def create_s2():
             '''I had to add these functions because pyqt was deleting them when the didn't have a parent.'''
@@ -424,6 +422,13 @@ class PuffAnalyzer(QWidget):
         self.setCurrPuff(0)
         self.show()
 
+    def plot_puff_centroids(self, scatter):
+        scatter.clear()
+        for puff in self.puffs.puffs:
+            x = puff.kinetics['x']
+            y = puff.kinetics['y']
+            scatter.addPoints(pos=[[x, y]], data=puff, brush=pg.mkBrush(puff.color), pen=pg.mkPen([0, 0, 0, 255]))
+
     def save(self):
         filename=self.data_window.filename
         
@@ -456,36 +461,37 @@ class PuffAnalyzer(QWidget):
         self.setCurrPuff(curr_idx)
 
     def updateScatter(self,X_axis='sigma',Y_axis='amplitude'):
-        pst=PersistentInfo(self)
-        starting_indicies=[]
-        peak_amps=[]
-        stds=[]
-        times=[]
-        sigmas=[]
-        amps=[]
-        color=[]
-        results=dict()
-        for starting_idx in np.arange(len(pst.clusters)):
-            if not pst.puffs[starting_idx]['trashed']:
-                before=pst.puffs[starting_idx]['kinetics']['before']
-                ontimes=list(set(pst.pixel_idxs[pst.clusters[starting_idx]][:,0]))
-                ontimes.sort()
-                t0=ontimes[0]-before; tf=ontimes[-1]-before
-                trace=pst.puffs[starting_idx]['trace'][t0:tf+1]
-                peak_amps.append(np.max(trace))
-                amps.append(pst.puffs[starting_idx]['kinetics']['amplitude'])
-                stds.append(np.std(trace))
-                times.append(ontimes[0])
-                sigmas.append(pst.puffs[starting_idx]['gaussianParams'][2])
-                color.append(pst.puffs[starting_idx]['color'])
-                starting_indicies.append(starting_idx)
-        results['time']=np.array(times)
-        results['amplitude']=np.array(amps)
-        results['sigma']=np.array(sigmas)
+        starting_indicies = []
+        peak_amps = []
+        stds = []
+        times = []
+        sigmas = []
+        amps = []
+        color = []
+        results = dict()
+        nEvents = len(self.puffs.puffs)
+        for i in np.arange(nEvents):
+            puff = self.puffs.puffs[i] # trashed puffs are not included in this list
+            before = puff.kinetics['before']
+            t0 = puff.kinetics['t_start']-before
+            tf = puff.kinetics['t_end']-before
+            trace_during = puff.trace[t0:tf+1]
+            peak_amps.append(np.max(trace_during))
+            amps.append(puff.kinetics['amplitude'])
+            stds.append(np.std(trace_during))
+            try:
+                sigmas.append(puff.kinetics['sigma'])
+            except KeyError:
+                sigma = max([puff.kinetics['sigmax'], puff.kinetics['sigmay']])
+                sigmas.append(sigma)
+            color.append(puff.color)
+            starting_indicies.append(puff.starting_idx)
+        results['amplitude'] = np.array(amps)
+        results['sigma'] = np.array(sigmas)
         
         self.s4.clear()
-        n=len(starting_indicies)
-        pos=np.array([results[X_axis],results[Y_axis]])
+        n = len(starting_indicies)
+        pos = np.array([results[X_axis],results[Y_axis]])
         spots = [{'pos': pos[:,i], 'data': starting_indicies[i], 'brush':pg.mkBrush(color[i])} for i in range(n)]
         self.s4.addPoints(spots)
 
@@ -699,7 +705,7 @@ class PuffAnalyzer(QWidget):
         puff_pt = np.array([puff.kinetics['x'],puff.kinetics['y']])
         difference = puff_pt-roi_pt
         
-        self.roi.translate(QPointF(*difference)) #translates the path
+        self.roi.translate(QPointF(*difference))  # translates the path
         self.roi.blockSignals(False)
         self.roi.getMask()
 
@@ -715,18 +721,9 @@ class PuffAnalyzer(QWidget):
                 trace = roi.getTrace()
                 roi_index = roi.traceWindow.get_roi_index(roi)
                 roi.traceWindow.update_trace_full(roi_index,trace)
-
-        
-        
-        
-        #self.roi.pathitem.setPath(self.roi.path)
-        #self.roi.finish_translate()
-        #self.roi.draw_from_points(self.roi.getPoints())
-        #self.roi.translate_done.emit()
         self.lastClicked = point
-        if self.currentPuff_spinbox.value()!=self.puffs.index:
+        if self.currentPuff_spinbox.value() != self.puffs.index:
             self.currentPuff_spinbox.setValue(self.puffs.index)
-            
         for p in self.lastClickedScatterPt:
             p.resetPen()
         p = [pt for pt in self.s4.points() if pt.data() == puff.starting_idx][0]
@@ -882,10 +879,12 @@ class PuffAnalyzer(QWidget):
     def refitGaussians(self):
         self.puffs.refit_gaussians()
         puff = self.puffs.getPuff()
-        self.trace_plot.clear()
-        puff.plot(self.trace_plot)
         self.updateScatter()
         self.drawRedOverlay()
+        self.plot_puff_centroids(self.s1)
+        curr_puff_idx = self.puffs.puffs.index(puff)
+        self.lastClicked = None
+        self.setCurrPuff(curr_puff_idx, force=True)
 
     def export_gui(self):
         filename=g.settings['filename']
