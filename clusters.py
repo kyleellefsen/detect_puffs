@@ -195,11 +195,11 @@ class Clusters():
         
     def make_cluster_im(self):
         print('Generating Cluster Movie')
-        mt,mx,my=self.movieShape
+        mt, mx, my=self.movieShape
         try:
             cluster_im=np.zeros((mt,mx,my,4),dtype=np.float16)
         except MemoryError:
-            print('There is not enough memory to create the image of clusters (error in function clusters.make_cluster_im).')
+            g.alert('There is not enough memory to create the image of clusters (error in function clusters.make_cluster_im).')
             return None
         for i, cluster in enumerate(self.clusters):
             color = cmap(int(((i%5)*255./6)+np.random.randint(255./12)))

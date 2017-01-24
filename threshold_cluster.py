@@ -440,7 +440,8 @@ class PuffAnalyzer(QWidget):
         
         with bz2.BZ2File(filename, 'w') as f:
             pickle.dump(persistentInfo, f)
-        g.m.statusBar().showMessage('Saved Flika file'); print('Saved Flika file')
+        msg = 'Saved Flika file'
+        g.alert(msg)
 
     def savePoints(self):
         g.m.statusBar().showMessage('Saving puff points'); print('Saving puff points')
@@ -452,8 +453,9 @@ class PuffAnalyzer(QWidget):
         pts=np.array(pts)
         filename=self.data_window.filename
         filename=os.path.splitext(filename)[0]+'_flika_pts.txt'
-        np.savetxt(filename,pts)
-        g.m.statusBar().showMessage('Saved puff points'); print('Saved puff points')
+        np.savetxt(filename, pts)
+        msg = 'Saved puff points'
+        g.alert(msg)
 
     def clickedScatter(self, plot, points):
         p=points[0]
