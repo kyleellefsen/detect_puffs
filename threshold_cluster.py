@@ -21,10 +21,11 @@ These puffs are displayed on the F/F0 movie as points.
 import numpy as np
 import global_vars as g
 from process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import qApp
-from PyQt4 import uic
+from qtpy.QtWidgets import *
+from qtpy.QtGui import *
+from qtpy.QtCore import *
+from qtpy.QtWidgets import qApp
+from qtpy import uic
 from window import Window #to display any 3d array in Flika, just call Window(array_name)
 import pyqtgraph as pg
 from scipy import ndimage

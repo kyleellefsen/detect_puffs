@@ -5,8 +5,8 @@ Created on Thu Apr 28 12:13:09 2016
 @author: Kyle Ellefsen
 """
 import numpy as np
-from PyQt4.QtCore import Qt
-from PyQt4.QtGui import qApp
+from qtpy.QtCore import Qt
+from qtpy.QtWidgets import qApp
 import pyqtgraph as pg
 from .gaussianFitting import fitGaussian, fitRotGaussian
 

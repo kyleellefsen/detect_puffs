@@ -7,8 +7,10 @@ Created on Mon Jul 21 10:37:27 2014
 import numpy as np
 import global_vars as g
 from process.BaseProcess import BaseProcess, WindowSelector, MissingWindowError
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from qtpy.QtGui import *
+from qtpy.QtCore import *
+from qtpy.QtWidgets import *
+
 
 from .puffAnalyzer import getCentersOfMass, Puffs, PuffAnalyzer
 

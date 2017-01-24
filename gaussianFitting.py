@@ -8,7 +8,7 @@ I found another library which performs a nearly identical function after I wrote
 import numpy as np
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
-from PyQt4 import QtGui, QtCore
+from qtpy import QtCore, QtWidgets
 from leastsqbound import leastsqbound
 
 def cosd(degrees):
@@ -232,7 +232,7 @@ class Puff3d(gl.GLViewWidget):
         
 
 if __name__=='__main__':
-    app = QtGui.QApplication([])
+    app = QtWidgets.QApplication([])
     x = np.arange(30,dtype=float)
     y = np.arange(30,dtype=float)
     I=gaussian_rot(x[:,None], y[None,:],xorigin=5.1,yorigin=18.5777,sigmax=1,sigmay=3,angle=45,amplitude=2)

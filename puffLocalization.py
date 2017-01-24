@@ -9,8 +9,10 @@ Run this file in Spyder after you've created a puffAnalyzer
 from pyqtgraph import plot,show
 import pyqtgraph as pg
 import numpy as np
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qtpy.QtCore import *
+from qtpy.QtGui import *
+from qtpy.QtWidgets import *
+
 from matplotlib import cm
 
 class OriginPlot(QWidget):

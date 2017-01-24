@@ -7,9 +7,10 @@ Created on Fri Oct 02 12:23:06 2015
 import numpy as np
 import tifffile
 import os
-from PyQt4.QtCore import pyqtSignal as Signal
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
+from qtpy.QtCore import Signal
+from qtpy.QtGui import *
+from qtpy.QtWidgets import *
+from qtpy.QtCore import *
 import inspect
 import numpy.random as random
 import shutil

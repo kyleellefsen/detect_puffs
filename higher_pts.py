@@ -4,7 +4,7 @@ Created on Mon Jan 04 15:17:57 2016
 
 @author: Kyle Ellefsen
 """
-from PyQt4.QtGui import qApp
+from qtpy.QtWidgets import qApp
 from process.progress_bar import ProgressBar
 import numpy as np
 import global_vars as g

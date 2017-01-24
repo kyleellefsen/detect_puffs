@@ -7,8 +7,9 @@ Created on Tue Aug 12 10:38:28 2014
 from scipy.fftpack import *
 from .gaussianFitting import fitGaussian
 import pyqtgraph as pg
-from PyQt4.QtCore import *
-from PyQt4.QtGui import *
+from qtpy.QtCore import *
+from qtpy.QtGui import *
+from qtpy.QtWidgets import *
 import numpy as np
 import global_vars as g
 

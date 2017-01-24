@@ -6,9 +6,10 @@ Created on Fri Apr 22 10:58:29 2016
 """
 import numpy as np
 import global_vars as g
-from PyQt4.QtGui import *
-from PyQt4.QtCore import *
-from PyQt4.QtGui import qApp
+from qtpy.QtGui import *
+from qtpy.QtCore import *
+from qtpy.QtWidgets import *
+from qtpy.QtWidgets import qApp
 import pyqtgraph as pg
 import matplotlib
 from window import Window #to display any 3d array in Flika, just call Window(array_name)
