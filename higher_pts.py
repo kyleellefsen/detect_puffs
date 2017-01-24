@@ -170,21 +170,21 @@ def getHigherPoint(q_results, q_progress, q_status, child_conn, args):
                 mask2=mask2[center2[0]-t:,:,:]
                 center2[0]=t
                 t0=0
-            elif tf>mt-1:
+            if tf>mt-1:
                 mask2=mask2[:-(tf-mt+1),:,:]
                 tf=mt-1
             if x0<0:
                 mask2=mask2[:,center2[1]-x:,:]
                 center2[1]=x
                 x0=0
-            elif xf>mx-1:
+            if xf>mx-1:
                 mask2=mask2[:,:-(xf-mx+1),:]
                 xf=mx-1
             if y0<0:
                 mask2=mask2[:,:,center2[2]-y:]
                 center2[2]=y
                 y0=0
-            elif yf>my-1:
+            if yf>my-1:
                 mask2=mask2[:,:,:-(yf-my+1)]
                 yf=my-1
                 
@@ -248,21 +248,21 @@ def getHigherPointSingleProcess(args, remander):
                     mask2=mask2[center2[0]-t:,:,:]
                     center2[0]=t
                     t0=0
-                elif tf>mt-1:
+                if tf>mt-1:
                     mask2=mask2[:-(tf-mt+1),:,:]
                     tf=mt-1
                 if x0<0:
                     mask2=mask2[:,center2[1]-x:,:]
                     center2[1]=x
                     x0=0
-                elif xf>mx-1:
+                if xf>mx-1:
                     mask2=mask2[:,:-(xf-mx+1),:]
                     xf=mx-1
                 if y0<0:
                     mask2=mask2[:,:,center2[2]-y:]
                     center2[2]=y
                     y0=0
-                elif yf>my-1:
+                if yf>my-1:
                     mask2=mask2[:,:,:-(yf-my+1)]
                     yf=my-1
                 positions=np.array(np.where(mask2*C[t0:tf,x0:xf,y0:yf]>density)).astype(float).T-center2
