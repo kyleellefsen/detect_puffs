@@ -131,7 +131,7 @@ class Simulate_Puffs(BaseProcess_noPriorWindow):
 simulate_puffs=Simulate_Puffs()
 
 def generatePuffImage(nFrames=10000,puffAmplitude=5,nPuffs=10):
-    tif=tifffile.TIFFfile(os.path.join(cwd,'model_puff.stk'))
+    tif=tifffile.TiffFile(os.path.join(cwd,'model_puff.stk'))
     model_puff=tif.asarray()
     model_puff=model_puff.reshape(model_puff.shape[0:3])
     model_puff=model_puff.astype(np.float64)
