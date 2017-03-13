@@ -127,6 +127,22 @@ class Threshold_cluster(BaseProcess):
     def __init__(self):
         super().__init__()
 
+    def get_init_settings_dict(self):
+        s = dict()
+        s['roi_width'] = 1
+        s['paddingXY'] = 20
+        s['paddingT_pre'] = 15
+        s['paddingT_post'] = 15
+        s['maxSigmaForGaussianFit'] = 10
+        s['rotatedfit'] = True
+        s['radius'] = np.sqrt(2)
+        s['maxPuffLen'] = 15
+        s['maxPuffDiameter'] = 10
+        s['blur_thresh'] = 2.7
+        s['time_factor'] = 1
+        s['load_flika_file'] = True
+        return s
+
     def gui(self):
         self.gui_reset()
         data_window=WindowSelector()
@@ -134,41 +150,25 @@ class Threshold_cluster(BaseProcess):
         blurred_window=WindowSelector()
         roi_width=OddSlider(0)
         roi_width.setRange(1,21)
-        roi_width.setValue(1)
         roi_width.setSingleStep(2)
         paddingXY=SliderLabel(0)
         paddingXY.setRange(0,100)
-        paddingXY.setValue(20)
-        paddingT_pre=SliderLabel(0); paddingT_pre.setRange(0,100); paddingT_pre.setValue(15)
-        paddingT_post=SliderLabel(0); paddingT_post.setRange(0,100); paddingT_post.setValue(15)
-        maxSigmaForGaussianFit=SliderLabel(0); maxSigmaForGaussianFit.setRange(0,100); maxSigmaForGaussianFit.setValue(10)
+        paddingT_pre=SliderLabel(0); paddingT_pre.setRange(0,100)
+        paddingT_post=SliderLabel(0); paddingT_post.setRange(0,100)
+        maxSigmaForGaussianFit=SliderLabel(0); maxSigmaForGaussianFit.setRange(0,100)
         rotatedfit=CheckBox()
-        rotatedfit.setValue(True)
         radius=SliderLabel(2)
         radius.setRange(.01,10)
         radius.setSingleStep(.1)
-        radius.setValue(np.sqrt(2))
         maxPuffLen=SliderLabel(0)
         maxPuffLen.setRange(1,100)
-        maxPuffLen.setValue(15)
         maxPuffDiameter=SliderLabel(0)
         maxPuffDiameter.setRange(1,100)
-        maxPuffDiameter.setValue(10)
         blur_thresh=SliderLabel(2)
-        blur_thresh.setRange(1,6)
-        blur_thresh.setValue(2.7)
+        blur_thresh.setRange(0,6)
         time_factor=SliderLabel(3)
         time_factor.setRange(0,20)
-        time_factor.setValue(1)
-        load_flika_file=QCheckBox()
-        load_flika_file.setChecked(True)
-        if 'threshold_cluster_settings' in g.settings.d.keys():
-            varDict=g.settings['threshold_cluster_settings']
-            for key in varDict.keys():
-                try:
-                    eval(key+'.setValue('+str(varDict[key])+')')
-                except NameError:
-                    pass
+        load_flika_file=CheckBox()
         self.items.append({'name':'data_window','string':'Data window containing F/F0 data', 'object': data_window})
         self.items.append({'name':'normalized_window','string':'Normalized window containing data with baseline at 0','object': normalized_window})
         self.items.append({'name':'blurred_window','string': 'Gaussian Blurred normalized window','object': blurred_window})
@@ -189,7 +189,7 @@ class Threshold_cluster(BaseProcess):
 
     def __call__(self, data_window, normalized_window, blurred_window, roi_width=3, paddingXY=20, paddingT_pre=15,
                  paddingT_post=15, maxSigmaForGaussianFit=10, rotatedfit=True, radius=np.sqrt(2), maxPuffLen=15,
-                 maxPuffDiameter=10, blur_thresh=None, time_factor=1, load_flika_file=True, keepSourceWindow=False):
+                 maxPuffDiameter=10, blur_thresh=1, time_factor=1, load_flika_file=True, keepSourceWindow=False):
         g.m.statusBar().showMessage('Performing {}...'.format(self.__name__))
         filename = data_window.filename
         filename = os.path.splitext(filename)[0]+'.flika'
@@ -210,10 +210,10 @@ class Threshold_cluster(BaseProcess):
             udc['maxPuffLen'] = maxPuffLen
             udc['maxPuffDiameter'] = maxPuffDiameter
             if blur_thresh is None:
-                if 'threshold_cluster_settings' in g.settings.d.keys():
-                    blur_thresh = g.settings['threshold_cluster_settings']['blur_thresh']
+                if 'threshold_cluster' in g.settings['baseprocesses'].keys():
+                    blur_thresh = g.settings['baseprocesses']['threshold_cluster']['blur_thresh']
                 else:
-                    blur_thresh = 2.7
+                    blur_thresh = 1
             udc['blur_thresh'] = blur_thresh
             udc['time_factor'] = time_factor
             puffAnalyzer = PuffAnalyzer(data_window, normalized_window, blurred_window, udc)
@@ -295,8 +295,6 @@ class PuffAnalyzer(QWidget):
         self.groups=Groups(self)
         self.trash=Trash(self)
         self.autoGroupEvents(self.udc['radius'])
-        g.settings['threshold_cluster_settings']=self.udc
-        g.settings.save()
         self.setupUI()
 
     def setupUI(self):
