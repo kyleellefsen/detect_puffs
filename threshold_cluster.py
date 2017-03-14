@@ -920,7 +920,10 @@ class PuffAnalyzer(QWidget):
         ''' This function saves out all the info about the puffs        
         '''
         from openpyxl import Workbook
-        from openpyxl.cell import get_column_letter
+        try:
+            from openpyxl.cell import get_column_letter
+        except ImportError:
+            from openpyxl.utils import get_column_letter
         g.m.statusBar().showMessage('Saving {}'.format(os.path.basename(filename)))
         
         workbook = Workbook() 
