@@ -17,35 +17,51 @@ These puffs are displayed on the F/F0 movie as points.
 
 
 """
-
+import pickle
+import bz2
+import ntpath
+import itertools
+from distutils.version import StrictVersion
+import os, inspect,sys
 import numpy as np
-import global_vars as g
-from process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 from qtpy.QtCore import *
 from qtpy.QtWidgets import qApp
 from qtpy import uic
-from window import Window #to display any 3d array in Flika, just call Window(array_name)
 import pyqtgraph as pg
 from scipy import ndimage
-from .puffs import Puffs, Puff
-from .groups import GroupAnalyzer, Group, Groups
-from .higher_pts import getHigherPoints
-from .clusters import Clusters, ClusterViewBox, ROI
 import pyqtgraph.opengl as gl
-from roi import ROI_rectangle, makeROI
-import itertools
-import os, inspect,sys
 import scipy.stats as st
 from scipy import spatial
 import matplotlib
 from pyqtgraph.dockarea import *
-from window import Window
-from process.file_ import open_file_gui, open_file
-import pickle
-import bz2
-import ntpath
+
+
+import flika
+try:
+    v = flika.__version__
+except AttributeError:
+    v = '0.0.0'
+if StrictVersion(v) < StrictVersion('0.1.0'):
+    import global_vars as g
+    from process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
+    from window import Window
+    from roi import ROI_rectangle, makeROI
+    from process.file_ import open_file_gui, open_file
+else:
+    from flika import global_vars as g
+    from flika.process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
+    from flika.window import Window
+    from flika.roi import ROI_rectangle, makeROI
+    from flika.process.file_ import open_file_gui, open_file
+
+from .puffs import Puffs, Puff
+from .groups import GroupAnalyzer, Group, Groups
+from .higher_pts import getHigherPoints
+from .clusters import Clusters, ClusterViewBox, ROI
+
+
 
 
 class OddSlider(SliderLabel):

@@ -4,12 +4,26 @@ Created on Mon Jan 04 15:17:57 2016
 
 @author: Kyle Ellefsen
 """
-from qtpy.QtWidgets import qApp
-from process.progress_bar import ProgressBar
 import numpy as np
-import global_vars as g
+from qtpy.QtWidgets import qApp
 from scipy import spatial
 import time
+from distutils.version import StrictVersion
+
+
+import flika
+try:
+    v = flika.__version__
+except AttributeError:
+    v = '0.0.0'
+if StrictVersion(v) < StrictVersion('0.1.0'):
+    import global_vars as g
+    from process.progress_bar import ProgressBar
+else:
+    from flika import global_vars as g
+    from flika.process.progress_bar import ProgressBar
+
+
 
 
 def getMask(nt=5,nx=5,ny=5):

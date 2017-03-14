@@ -5,13 +5,23 @@ Created on Tue Aug 12 10:38:28 2014
 @author: Kyle Ellefsen
 """
 from scipy.fftpack import *
+from distutils.version import StrictVersion
 from .gaussianFitting import fitGaussian
 import pyqtgraph as pg
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 import numpy as np
-import global_vars as g
+
+import flika
+try:
+    v = flika.__version__
+except AttributeError:
+    v = '0.0.0'
+if StrictVersion(v) < StrictVersion('0.1.0'):
+    import global_vars as g
+else:
+    from flika import global_vars as g
 
 
         

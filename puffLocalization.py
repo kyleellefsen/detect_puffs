@@ -4,7 +4,7 @@ Created on Fri Aug 01 14:12:20 2014
 
 @author: Kyle Ellefsen
 
-Run this file in Spyder after you've created a puffAnalyzer
+Run this file in PyCharm after you've created a puffAnalyzer
 """
 from pyqtgraph import plot,show
 import pyqtgraph as pg
@@ -12,8 +12,20 @@ import numpy as np
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
-
 from matplotlib import cm
+
+from distutils.version import StrictVersion
+
+
+import flika
+try:
+    v = flika.__version__
+except AttributeError:
+    v = '0.0.0'
+if StrictVersion(v) < StrictVersion('0.1.0'):
+    import global_vars as g
+else:
+    from flika import global_vars as g
 
 class OriginPlot(QWidget):
     def __init__(self,image=np.zeros((1,1)), nColors=10,parent=None):
@@ -46,7 +58,7 @@ class OriginPlot(QWidget):
         self.w1.autoRange()
 
 
-mat=g.m.currentWindow.image[200:300].mean(0)
+mat = g.m.currentWindow.image[200:300].mean(0)
 origins=OriginPlot(mat)
 
 i=0

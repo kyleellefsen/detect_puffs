@@ -5,16 +5,29 @@ Created on Fri Apr 22 10:58:29 2016
 @author: kyle
 """
 import numpy as np
-import global_vars as g
+from distutils.version import StrictVersion
 from qtpy.QtGui import *
 from qtpy.QtCore import *
 from qtpy.QtWidgets import *
 from qtpy.QtWidgets import qApp
 import pyqtgraph as pg
 import matplotlib
-from window import Window #to display any 3d array in Flika, just call Window(array_name)
-from .puffs import Puffs
 cmap=matplotlib.cm.gist_rainbow
+
+
+import flika
+try:
+    v = flika.__version__
+except AttributeError:
+    v = '0.0.0'
+if StrictVersion(v) < StrictVersion('0.1.0'):
+    import global_vars as g
+    from window import Window
+else:
+    from flika import global_vars as g
+    from flika.window import Window
+from .puffs import Puffs
+
 
 class Point():
     def __init__(self,idx, idxs):
