@@ -988,10 +988,10 @@ class PuffAnalyzer(QWidget):
             y = int(np.floor(group.pos[1]))
             roi_width = g.m.puffAnalyzer.udc['roi_width']
             r = (roi_width-1)/2
-            xmin = max(x - r, 0)
-            ymin = max(y - r, 0)
-            xmax = min(x + r, self.data_window.mx)
-            ymax = min(y + r, self.data_window.my)
+            xmin = int(max(x - r, 0))
+            ymin = int(max(y - r, 0))
+            xmax = int(min(x + r, self.data_window.mx))
+            ymax = int(min(y + r, self.data_window.my))
             trace = self.data_window.image[:, xmin:xmax+1, ymin:ymax+1]
             trace = np.mean(np.mean(trace, 1), 1)
             col = get_column_letter(groupN)
