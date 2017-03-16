@@ -14,20 +14,43 @@ from qtpy.QtCore import *
 import inspect
 import numpy.random as random
 import shutil
-from window import Window
-import global_vars as g
-from process.file_ import close
-from process.filters import gaussian_blur
-from process.binary import threshold
-from process.roi import set_value
-from roi import makeROI
-from plugins.detect_puffs.threshold_cluster import threshold_cluster
-
-cwd=os.path.dirname(os.path.abspath(__file__)) # cwd=r'C:\Users\Kyle Ellefsen\Documents\GitHub\Flika\plugins\puff_simulator'
+from distutils.version import StrictVersion
 
 
+import flika
+try:
+    flika_version = flika.__version__
+except AttributeError:
+    flika_version = '0.0.0'
+if StrictVersion(flika_version) < StrictVersion('0.1.0'):
+    import global_vars as g
+    from window import Window
+    from process.file_ import close
 
-from process.BaseProcess import SliderLabel,  BaseProcess_noPriorWindow, FileSelector
+    from process.filters import gaussian_blur
+    from process.binary import threshold
+    from process.roi import set_value
+    from roi import makeROI
+    from process.BaseProcess import SliderLabel, BaseProcess_noPriorWindow, FileSelector
+    from plugins.detect_puffs.threshold_cluster import threshold_cluster
+
+else:
+    from flika import global_vars as g
+    from flika.window import Window
+    from flika.process.file_ import close
+    from flika.process.filters import gaussian_blur
+    from flika.process.binary import threshold
+    from flika.process.roi import set_value
+    from flika.roi import makeROI
+    from flika.process.BaseProcess import SliderLabel, BaseProcess_noPriorWindow, FileSelector
+    from ..threshold_cluster import threshold_cluster
+
+
+cwd = os.path.dirname(os.path.abspath(__file__)) # cwd=r'C:\Users\Kyle Ellefsen\Documents\GitHub\Flika\plugins\puff_simulator'
+
+
+
+
 
 #class Simulate_Puffs(QWidget):
 #    closeSignal=Signal()
