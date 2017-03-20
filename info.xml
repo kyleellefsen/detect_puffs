@@ -1,16 +1,10 @@
 <plugin name="Detect Puffs">
-	<base_dir>
-		detect_puffs
-	</base_dir>
-	<date>
-		06/27/2016
-	</date>
+	<version>
+		2017.03.20
+	</version>
 	<author>
 		Kyle Ellefsen
 	</author>
-	<description>
-		Puff detection and analysis algorithms.
-	</description>
 	<url>
 		https://github.com/kyleellefsen/detect_puffs/archive/master.zip
 	</url>
