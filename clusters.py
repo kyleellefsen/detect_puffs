@@ -12,6 +12,7 @@ from qtpy.QtWidgets import *
 from qtpy.QtWidgets import qApp
 import pyqtgraph as pg
 import matplotlib
+import matplotlib.cm
 cmap=matplotlib.cm.gist_rainbow
 
 
