@@ -1,4 +1,7 @@
 <plugin name="Detect Puffs">
+    <directory>
+        detect_puffs
+    </directory>
 	<version>
 		2017.03.20
 	</version>
