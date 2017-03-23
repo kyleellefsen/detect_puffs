@@ -100,19 +100,34 @@ def getHigherPoints(blurred, udc):
             pos1[:,0]=pos1[:,0]/time_factor
             pos2=idxs[possible_higher_pts].astype(np.float)
             pos2[:,0]=pos2[:,0]/time_factor
-            print('Constructing {}x{} distance matrix'.format(len(pos1),len(pos2)))
-            D=spatial.distance_matrix(pos1,pos2)
-            for i, pt in enumerate(remander):
-                density=densities_jittered[pt]
-                idxs2=dens3>density
-                pts_of_higher_density=possible_higher_pts[idxs2]
-                if len(pts_of_higher_density)==0: #this is the most dense point
-                    higher_pts[pt]= [maxDistance, pt, density]
-                else:
-                    distances_to_pts_of_higher_density=D[i,:][idxs2]
-                    higher_pt=pts_of_higher_density[np.argmin(distances_to_pts_of_higher_density)]
-                    distance_to_nearest_pt_with_higher_density=np.min(distances_to_pts_of_higher_density)
-                    higher_pts[pt]= [distance_to_nearest_pt_with_higher_density, higher_pt, density]
+            try:
+                print('Constructing {}x{} distance matrix'.format(len(pos1), len(pos2)))
+                D = spatial.distance_matrix(pos1,pos2)  # If this matrix is large, this will fail with a MemoryError.
+                for i, pt in enumerate(remander):
+                    density = densities_jittered[pt]
+                    idxs2 = dens3 > density
+                    pts_of_higher_density = possible_higher_pts[idxs2]
+                    if len(pts_of_higher_density) == 0:  # This is the most dense point
+                        higher_pts[pt] = [maxDistance, pt, density]
+                    else:
+                        distances_to_pts_of_higher_density = D[i,:][idxs2]
+                        higher_pt = pts_of_higher_density[np.argmin(distances_to_pts_of_higher_density)]
+                        distance_to_nearest_pt_with_higher_density = np.min(distances_to_pts_of_higher_density)
+                        higher_pts[pt] = [distance_to_nearest_pt_with_higher_density, higher_pt, density]
+            except MemoryError:
+                most_dense_point = None
+                for i, pt in enumerate(remander):
+                    # Finding most dense point
+                    density = densities_jittered[pt]
+                    idxs2 = dens3 > density
+                    pts_of_higher_density = possible_higher_pts[idxs2]
+                    if len(pts_of_higher_density) == 0:  # This is the most dense point
+                        most_dense_point = pt
+                for i, pt in enumerate(remander):
+                    density = densities_jittered[pt]
+                    higher_pts[pt] = [maxDistance, most_dense_point, density]
+
+
         elif False:
             idxs_time_adjusted=idxs[:].astype(np.float)
             idxs_time_adjusted[:,0]=idxs_time_adjusted[:,0]/time_factor
