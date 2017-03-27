@@ -5,7 +5,6 @@ Created on Fri Oct 02 12:23:06 2015
 @author: Kyle Ellefsen
 """
 import numpy as np
-import tifffile
 import os
 from qtpy.QtCore import Signal
 from qtpy.QtGui import *
@@ -26,7 +25,7 @@ if StrictVersion(flika_version) < StrictVersion('0.1.0'):
     import global_vars as g
     from window import Window
     from process.file_ import close
-
+    import tifffile
     from process.filters import gaussian_blur
     from process.binary import threshold
     from process.roi import set_value
@@ -42,6 +41,8 @@ else:
     from flika.process.binary import threshold
     from flika.process.roi import set_value
     from flika.roi import makeROI
+    from flika.utils.io import tifffile
+
     from flika.process.BaseProcess import SliderLabel, BaseProcess_noPriorWindow, FileSelector
     from ..threshold_cluster import threshold_cluster
 
