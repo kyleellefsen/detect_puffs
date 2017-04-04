@@ -56,7 +56,8 @@ else:
     from flika.process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
     from flika.window import Window
     from flika.roi import ROI_rectangle, makeROI
-    from flika.process.file_ import open_file_gui, open_file
+    from flika.process.file_ import open_file
+    from flika.utils.misc import open_file_gui
 
 from .puffs import Puffs, Puff
 from .groups import GroupAnalyzer, Group, Groups
@@ -90,12 +91,15 @@ class OddSlider(SliderLabel):
 
 
 def launch_docs():
-    url='https://github.com/kyleellefsen/detect_puffs'
+    url = 'https://github.com/kyleellefsen/detect_puffs'
     QDesktopServices.openUrl(QUrl(url))
 
 
 def load_flika_file_gui():
-    open_file_gui(load_flika_file, '*.flika', prompt='Open .flika file')
+    prompt = 'Open .flika file'
+    filetypes = '*.flika'
+    filename = open_file_gui(prompt=prompt, filetypes=filetypes)
+    load_flika_file(filename)
 
 
 def load_flika_file(filename=None):
@@ -1190,3 +1194,19 @@ class PersistentInfo:
         self.udc=puffAnalyzer.udc
         self.movieShape=puffAnalyzer.clusters.movieShape
         self.data_window_commands=puffAnalyzer.data_window.commands
+
+
+def run_demo():
+    from flika import subtract, ratio, gaussian_blur #open_file, zproject, image_calculator, gaussian_blur, threshold, remove_small_blobs
+    from .puff_simulator.puff_simulator import simulate_puffs # from plugins.detect_puffs.puff_simulator.puff_simulator import simulate_puffs
+    simulate_puffs(nFrames=1000, nPuffs=20)
+    baseline = -5  # This is the mean pixel value in the absence of photons.
+    subtract(baseline)
+    data_window = ratio(0, 30, 'average')  # ratio(first_frame, nFrames, ratio_type). Now we are in F/F0
+    data_window.setName('Data Window (F/F0)')
+    norm_image = data_window.image - 1
+    norm_window = Window(norm_image)
+    norm_window.setName('Normalized Window')
+    blurred_window = gaussian_blur(2, norm_edges=True, keepSourceWindow=True)
+    blurred_window.setName('Blurred Window')
+    threshold_cluster(data_window, blurred_window, blurred_window, blur_thresh=.1)

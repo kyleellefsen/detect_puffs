@@ -21,6 +21,7 @@
 		<action location="threshold_cluster" function="threshold_cluster.gui">Threshold Cluster</action>
 		<action location="puff_simulator.puff_simulator" function="simulate_puffs.gui">Simulate Puffs</action>
 		<action location="threshold_cluster" function="load_flika_file_gui">Load .flika file</action>
+		<action location="threshold_cluster" function="run_demo">Run Demo</action>
 		<action location="threshold_cluster" function="launch_docs">Docs</action>
 	</menu_layout>
 </plugin>
