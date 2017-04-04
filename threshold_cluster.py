@@ -58,6 +58,7 @@ else:
     from flika.roi import ROI_rectangle, makeROI
     from flika.process.file_ import open_file
     from flika.utils.misc import open_file_gui
+    import flika.process as process
 
 from .puffs import Puffs, Puff
 from .groups import GroupAnalyzer, Group, Groups
@@ -119,7 +120,7 @@ def load_flika_file(filename=None):
     if hasattr(persistentInfo,'data_window_commands'):
         commands=persistentInfo.data_window_commands
         for command in commands[1:]:
-            exec(command)
+            exec('process.'+command)
         data_window=g.currentWindow
         data_window.setName('Data Window (F/F0)')
     else:

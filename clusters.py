@@ -260,7 +260,7 @@ class ClusterViewBox(pg.ViewBox):
                 #print("Drag start x={},y={}".format(self.x,self.y))
                 if self.currentROI is not None:
                     self.currentROI.delete()
-                self.currentROI=ROI(self,self.x,self.y)
+                self.currentROI = ROI(self, self.x, self.y)
             if ev.isFinish():
                 self.currentROI.drawFinished()
                 self.drawFinishedSignal.emit()
@@ -282,7 +282,7 @@ class ROI(QWidget):
         self.path=QPainterPath(QPointF(x,y))
         self.pathitem=QGraphicsPathItem(self.viewbox)
         self.color=Qt.yellow
-        self.pathitem.setPen(QPen(self.color))
+        self.pathitem.setPen(QPen(self.color, 0))
         self.pathitem.setPath(self.path)
         self.viewbox.addItem(self.pathitem,ignoreBounds=True)
         self.mouseIsOver=False
