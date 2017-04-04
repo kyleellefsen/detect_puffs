@@ -53,12 +53,12 @@ if StrictVersion(flika_version) < StrictVersion('0.1.0'):
     g.alert('The detect_puffs no longer works with older versions of Filka. Delete your current version of Flika and reinstall the newer version before using this plugin. ')
 else:
     from flika import global_vars as g
-    from flika.process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
     from flika.window import Window
     from flika.roi import ROI_rectangle, makeROI
     from flika.process.file_ import open_file
     from flika.utils.misc import open_file_gui
-    import flika.process as process
+    from flika.process import *
+    from flika.process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
 
 from .puffs import Puffs, Puff
 from .groups import GroupAnalyzer, Group, Groups
@@ -120,7 +120,7 @@ def load_flika_file(filename=None):
     if hasattr(persistentInfo,'data_window_commands'):
         commands=persistentInfo.data_window_commands
         for command in commands[1:]:
-            exec('process.'+command)
+            exec(command)
         data_window=g.currentWindow
         data_window.setName('Data Window (F/F0)')
     else:
@@ -1198,7 +1198,6 @@ class PersistentInfo:
 
 
 def run_demo():
-    from flika import subtract, ratio, gaussian_blur #open_file, zproject, image_calculator, gaussian_blur, threshold, remove_small_blobs
     from .puff_simulator.puff_simulator import simulate_puffs # from plugins.detect_puffs.puff_simulator.puff_simulator import simulate_puffs
     simulate_puffs(nFrames=1000, nPuffs=20)
     baseline = -5  # This is the mean pixel value in the absence of photons.
