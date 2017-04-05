@@ -611,8 +611,8 @@ class PuffAnalyzer(QWidget):
                 g.currentTrace.keyPressSignal.disconnect(self.keyPressEvent)
             except TypeError:
                 pass
-        self.data_window.keyPressSignal.disconnect(self.keyPressEvent)
         if not self.data_window.closed:
+            self.data_window.keyPressSignal.disconnect(self.keyPressEvent)
             self.data_window.sigTimeChanged.disconnect(self.updateTime) 
             self.data_window.imageview.view.removeItem(self.clusterItem)
             if self.data_window in g.windows:
