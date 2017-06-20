@@ -59,6 +59,7 @@ else:
     from flika.utils.misc import open_file_gui
     from flika.process import *
     from flika.process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
+    from flika.utils.misc import save_file_gui
 
 from .puffs import Puffs, Puff
 from .groups import GroupAnalyzer, Group, Groups
@@ -904,14 +905,13 @@ class PuffAnalyzer(QWidget):
         self.setCurrPuff(curr_puff_idx, force=True)
 
     def export_gui(self):
-        filename=g.settings['filename']
-        directory=os.path.dirname(filename)
+        filename = g.settings['filename']
+        directory = os.path.dirname(filename)
         if filename is not None:
-            filename= QFileDialog.getSaveFileName(g.m, 'Export Puff Info', directory, '*.xlsx')
+            filename = save_file_gui('Export Puff Info', directory, '*.xlsx')
         else:
-            filename= QFileDialog.getSaveFileName(g.m, 'Export Puff Info', '*.xlsx')
-        filename=str(filename)
-        if filename=='':
+            filename = save_file_gui('Export Puff Info', '', '*.xlsx')
+        if filename == '' or filename is None:
             return False
         else:
             self.export(filename)
