@@ -305,18 +305,18 @@ class PuffAnalyzer(QWidget):
 
     def loadPersistentInfo(self, persistentInfo):
         self.udc = persistentInfo.udc
-        self.clusters = Clusters(None,None,None,self,persistentInfo)
+        self.clusters = Clusters(None, None, None, self, persistentInfo)
         self.groups = Groups(self)
         if hasattr(persistentInfo,'groups'):
             for i in np.arange(len(persistentInfo.groups)):
                 self.groups.append(Group([puff for puff in g.puffAnalyzer.puffs.puffs if puff.starting_idx in persistentInfo.groups[i]]))
-        else: # 'groups' used to be named 'sites'.  This is for legacy .flika files.
+        else:  # 'groups' used to be named 'sites'.  This is for legacy .flika files.
             for i in np.arange(len(persistentInfo.sites)):
                 self.groups.append(Group([puff for puff in g.puffAnalyzer.puffs.puffs if puff.starting_idx in persistentInfo.sites[i]]))
         self.trash = Trash(self)
         for i in np.arange(len(persistentInfo.puffs)):
             if persistentInfo.puffs[i]['trashed']:
-                puff=[puff for puff in g.puffAnalyzer.puffs.puffs if puff.starting_idx == i][0]
+                puff = [puff for puff in g.puffAnalyzer.puffs.puffs if puff.starting_idx == i][0]
                 self.trash.append(puff)
                 self.puffs.puffs.remove(puff)
         self.setupUI()
@@ -348,42 +348,42 @@ class PuffAnalyzer(QWidget):
         self.area.addDock(self.d3,'right')
         self.area.addDock(self.d4,'below',self.d1)
         
-        first_puff=self.puffs[0]
-        self.threeD_plot=threeD_plot(first_puff)
+        first_puff = self.puffs[0]
+        self.threeD_plot = threeD_plot(first_puff)
         self.d1.addWidget(self.threeD_plot)
-        self.threeD_plot_ON=True
-        self.trace_plot=pg.PlotWidget()
+        self.threeD_plot_ON = True
+        self.trace_plot = pg.PlotWidget()
         if first_puff is not None:
             first_puff.plot(self.trace_plot)
         self.d2.addWidget(self.trace_plot)
 
-        self.control_panel=QGridLayout()
-        self.currentPuff_spinbox =QSpinBox()
+        self.control_panel = QGridLayout()
+        self.currentPuff_spinbox = QSpinBox()
         self.currentPuff_spinbox.setMaximum(len(self.puffs.puffs)-1)
         self.currentPuff_spinbox.valueChanged.connect(self.setCurrPuff)
-        self.discardButton=QPushButton('Delete Puff')
+        self.discardButton = QPushButton('Delete Puff')
         self.discardButton.pressed.connect(self.discard_currPuff)
-        self.togglePuffsButton=QPushButton('Toggle Puffs')
+        self.togglePuffsButton = QPushButton('Toggle Puffs')
         self.togglePuffsButton.pressed.connect(self.togglePuffs)
-        self.toggleGroupsButton=QPushButton('Toggle Groups')
+        self.toggleGroupsButton = QPushButton('Toggle Groups')
         self.toggleGroupsButton.pressed.connect(self.toggleGroups)
-        self.toggleTrashButton=QPushButton('Toggle Trash')
+        self.toggleTrashButton = QPushButton('Toggle Trash')
         self.toggleTrashButton.pressed.connect(self.toggleTrash)
-        self.toggle3DButton=QPushButton('Toggle 3D Plot')
+        self.toggle3DButton = QPushButton('Toggle 3D Plot')
         self.toggle3DButton.pressed.connect(self.toggle3D)
-        self.filterButton=QPushButton('Filter')
+        self.filterButton = QPushButton('Filter')
         self.filterButton.pressed.connect(self.openFilterGUI)
-        self.widenButton=QPushButton('Widen all puff durations')
+        self.widenButton = QPushButton('Widen all puff durations')
         self.widenButton.pressed.connect(self.widenPuffDurations)
-        self.refitButton=QPushButton('Refit Gaussians')
+        self.refitButton = QPushButton('Refit Gaussians')
         self.refitButton.pressed.connect(self.refitGaussians)
-        self.compareWithManualButton=QPushButton('Compare with manual pts')
+        self.compareWithManualButton = QPushButton('Compare with manual pts')
         self.compareWithManualButton.pressed.connect(self.compareWithManual)
-        self.exportButton=QPushButton('Export to Excel')
+        self.exportButton = QPushButton('Export to Excel')
         self.exportButton.pressed.connect(self.export_gui)
-        self.savePointsButton=QPushButton('Save points')
+        self.savePointsButton = QPushButton('Save points')
         self.savePointsButton.pressed.connect(self.savePoints)
-        self.saveButton=QPushButton('Save (.flika)')
+        self.saveButton = QPushButton('Save (.flika)')
         self.saveButton.pressed.connect(self.save)
         self.control_panel.addWidget(self.currentPuff_spinbox,0,0)
         self.control_panel.addWidget(self.discardButton,1,0)
@@ -398,29 +398,27 @@ class PuffAnalyzer(QWidget):
         self.control_panel.addWidget(self.compareWithManualButton, 10, 0)
         self.control_panel.addWidget(self.savePointsButton, 11, 0)
         self.control_panel.addWidget(self.saveButton, 12, 0)
-        self.control_panelWidget=QWidget()
+        self.control_panelWidget = QWidget()
         self.control_panelWidget.setLayout(self.control_panel)
         self.d3.addWidget(self.control_panelWidget)
-        self.puffsVisible=True
-        self.groupsVisible=False
-        self.trashVisible=False
-        self.currentPuff_spinbox.puffidx=-1
-        
-        
-        self.s1=pg.ScatterPlotItem(size=5, pen=pg.mkPen(None)) #PUFFS
+        self.puffsVisible = True
+        self.groupsVisible = False
+        self.trashVisible = False
+        self.currentPuff_spinbox.puffidx =- 1
+        self.s1 = pg.ScatterPlotItem(size=5, pen=pg.mkPen(None)) #PUFFS
         self.data_window.imageview.addItem(self.s1)
         self.s1.sigClicked.connect(self.clicked)
         self.plot_puff_centroids(self.s1)
 
 
         def create_s2():
-            '''I had to add these functions because pyqt was deleting them when the didn't have a parent.'''
+            '''I had to add these functions because pyqt was deleting them when they didn't have a parent.'''
             self.s2=pg.ScatterPlotItem(size=5,  brush=pg.mkBrush(0, 255, 0, 255),pen=pg.mkPen([0,0,0,255])) #GROUPS
             self.s2.sigClicked.connect(self.clickedGroup)
             self.s2.addPoints(pos=[group.pos for group in self.groups],data=self.groups)
             self.s2.destroyed.connect(create_s2)
         def create_s3():
-            '''I had to add these functions because pyqt was deleting them when the didn't have a parent.'''
+            '''I had to add these functions because pyqt was deleting them when they didn't have a parent.'''
             self.s3=pg.ScatterPlotItem(size=5,  brush=pg.mkBrush(0, 255, 255, 255),pen=pg.mkPen([0,0,0,255])) #TRASH
             self.s3.sigClicked.connect(self.clickedTrash)
             for puff in self.trash:
@@ -434,7 +432,7 @@ class PuffAnalyzer(QWidget):
         self.s4 = pg.ScatterPlotItem(size=5, brush=pg.mkBrush(255, 255, 255, 120), pen=pg.mkPen([0, 0, 0, 255]))
         view = pg.GraphicsLayoutWidget()
         self.d4.addWidget(view)
-        self.scatter_viewbox=ScatterViewBox()
+        self.scatter_viewbox = ScatterViewBox()
         self.scatterPlot=view.addPlot(viewBox=self.scatter_viewbox)
         self.scatter_viewbox.drawFinishedSignal.connect(self.lasso_puffs)
         self.scatter_viewbox.EnterPressedSignal.connect(self.reset_scatter_colors)
@@ -443,8 +441,7 @@ class PuffAnalyzer(QWidget):
         self.s4.sigClicked.connect(self.clickedScatter)
         self.scatterPlot.axes['bottom']['item'].setLabel('Sigma of Puff Gaussian Fit (pixels)')
         self.scatterPlot.axes['left']['item'].setLabel('Amplitude of Puff Trace (F/F0)')
-
-        self.groupAnalyzer=None
+        self.groupAnalyzer = None
         self.lastClicked = None
         self.linkTif()
         self.updateScatter()
@@ -491,7 +488,7 @@ class PuffAnalyzer(QWidget):
         curr_idx=[puff.starting_idx for puff in self.puffs].index(starting_idx)
         self.setCurrPuff(curr_idx)
 
-    def updateScatter(self,X_axis='sigma',Y_axis='amplitude'):
+    def updateScatter(self, X_axis='sigma', Y_axis='amplitude'):
         starting_indicies = []
         peak_amps = []
         stds = []
@@ -560,13 +557,14 @@ class PuffAnalyzer(QWidget):
             self.d1.addWidget(self.threeD_plot)
 
     def linkTif(self):
-        self.clusterItem=pg.ImageItem(self.puffs.cluster_im[0])
+        self.clusterItem = pg.ImageItem(self.puffs.cluster_im[0])
         self.data_window.imageview.view.addItem(self.clusterItem)
         self.clusterItem.setOpacity(.5)
+        self.clusterItem.setLevels(np.array([0, 1]))
         self.data_window.sigTimeChanged.connect(self.updateTime)        
-        puff=self.puffs.getPuff()
+        puff = self.puffs.getPuff()
         if puff is not None:
-            x=np.floor(puff.kinetics['x']); y=np.floor(puff.kinetics['y'])
+            x = np.floor(puff.kinetics['x']); y = np.floor(puff.kinetics['y'])
         else:
             x = 0
             y = 0
@@ -576,10 +574,10 @@ class PuffAnalyzer(QWidget):
         x1 = x + r + 1
         y0 = y - r
         y1 = y + r + 1
-        pts=[(x0,y0),(x0,y1),(x1,y1),(x1,y0),(x0,y0)]
+        pts = [(x0, y0), (x0, y1), (x1, y1), (x1, y0), (x0, y0)]
         self.roi = makeROI('rectangle',pts,self.data_window, resizable=True)
         #self.data_window.deleteButtonSignal.disconnect(self.roi.deleteCurrentROI)
-        self.redTraces=[]
+        self.redTraces = []
         self.data_window.keyPressSignal.connect(self.keyPressEvent)
         self.roi.plotSignal.connect(self.linkTracefig)
         self.roi.plot()
@@ -592,7 +590,7 @@ class PuffAnalyzer(QWidget):
         self.drawRedOverlay()
 
     def updateTime(self,t):
-        self.clusterItem.setImage(self.puffs.cluster_im[t])
+        self.clusterItem.setImage(self.puffs.cluster_im[t], False) #If autolevels is not False, the clusterItem is invisible in a very small set of frames.
 
     def closeEvent(self, event):
         self.close()

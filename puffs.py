@@ -28,15 +28,15 @@ def scatterAddPoints(scatterplot,pos,data):
 
 
 class Puffs:
-    def __init__(self,clusters,cluster_im,puffAnalyzer,persistentInfo=None):#weakfilt,strongfilt,paddingXY,paddingT_pre,paddingT_post,maxSigmaForGaussianFit,rotatedfit):
-        self.puffAnalyzer=puffAnalyzer
-        self.udc=puffAnalyzer.udc        
-        self.puffs=[]
-        self.index=0
-        self.clusters=clusters
-        self.normalized_window=puffAnalyzer.normalized_window
-        self.data_window=puffAnalyzer.data_window
-        self.cluster_im=cluster_im
+    def __init__(self, clusters, cluster_im, puffAnalyzer, persistentInfo=None):#weakfilt,strongfilt,paddingXY,paddingT_pre,paddingT_post,maxSigmaForGaussianFit,rotatedfit):
+        self.puffAnalyzer = puffAnalyzer
+        self.udc = puffAnalyzer.udc
+        self.puffs = []
+        self.index = 0
+        self.clusters = clusters
+        self.normalized_window = puffAnalyzer.normalized_window
+        self.data_window = puffAnalyzer.data_window
+        self.cluster_im = cluster_im
         
         self.puffs=[]
         nClusters=len(self.clusters.clusters)

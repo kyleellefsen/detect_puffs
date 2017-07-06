@@ -63,21 +63,21 @@ from plugins.detect_puffs.clusters import *
 cluster_movie=g.m.currentWindow
 '''
 class Clusters():
-    def __init__(self,higher_pts, idxs, movieShape, puffAnalyzer, persistentInfo=None):
+    def __init__(self, higher_pts, idxs, movieShape, puffAnalyzer, persistentInfo=None):
         self.persistentInfo=persistentInfo
         if persistentInfo is not None:
-            self.idxs=persistentInfo.pixel_idxs
-            self.movieShape=persistentInfo.movieShape
-            self.clusters=persistentInfo.clusters
-            self.puffAnalyzer=puffAnalyzer
+            self.idxs = persistentInfo.pixel_idxs
+            self.movieShape = persistentInfo.movieShape
+            self.clusters = persistentInfo.clusters
+            self.puffAnalyzer = puffAnalyzer
             self.getPuffs()
         else:
-            self.higher_pts=higher_pts
-            self.idxs=idxs
-            self.movieShape=movieShape
-            self.puffAnalyzer=puffAnalyzer
-            self.vb=ClusterViewBox()
-            self.pw=pg.PlotWidget(viewBox=self.vb)
+            self.higher_pts = higher_pts
+            self.idxs = idxs
+            self.movieShape = movieShape
+            self.puffAnalyzer = puffAnalyzer
+            self.vb = ClusterViewBox()
+            self.pw = pg.PlotWidget(viewBox=self.vb)
             #  Only plot the points that are at least 1 pixel away from the next higher point, because pixels this close
             #  are guaranteed to be clustered together.
             higher_pts_tmp=self.higher_pts[self.higher_pts[:, 0] > 1]
@@ -124,7 +124,7 @@ class Clusters():
             self.cluster_movie.close()
         else:
             self.cluster_im = self.make_cluster_im()
-            self.puffAnalyzer.puffs=Puffs(self,self.cluster_im,self.puffAnalyzer,self.persistentInfo)
+            self.puffAnalyzer.puffs = Puffs(self, self.cluster_im, self.puffAnalyzer, self.persistentInfo)
         
     def finished(self):
         print('Finished with clusters! Getting puffs')
