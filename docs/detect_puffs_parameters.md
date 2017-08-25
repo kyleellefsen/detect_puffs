@@ -31,10 +31,10 @@ How many frames before the event detection should we look for the start of the e
 How many frames after the event detection should we look for the end of the event.
 
 ### maxSigmaForGaussianFit (int)
-When fitting with a gaussian, what is the upper bound for the sigma (or sigmax and sigmay) parameter 
+When fitting with a gaussian, what is the upper bound for the sigma (width) or sigmax and sigmay (if fitting with a rotatable gaussian) parameter.
 
 ### rotatedfit (bool)
-Set this to True to fit to a 2d rotating gaussian. 
+Set this to True to fit to a 2D rotatable gaussian. If False, each event will be fit with a single circularly symmetric sigma (width) parameter. A rotatable gaussian has additional fitting parameters: a long axis with a sigmax (width), a short axis with a sigmay, and a theta (angle).
 
 ### radius (float)
 Puffs seperated by less than this amount (in pixels) will be grouped together in a group. If two puff centroids are 5 pixels apart and 
@@ -57,7 +57,7 @@ This affects 'chunking' when determining distances between pixels.    This value
 calculating densities
 
 ### blur_thresh (float)
-Get rid of all the points you are sure don't belong to puffs.
+Get rid of all the pixels you are sure don't belong to puffs. All pixels in the blurred_window movie below this threshold won't be considered to be part of an event.
 
 ### time_factor (float)
 When looking for the nearest point of higher density, time and space don't need to be weighted equally.  This is how much time will be 
@@ -77,7 +77,7 @@ A) They are taken from the data_window. The value for each frame is the average 
 The width of the ROI is set by the the `roi_width` parameter, and the center of the ROI is the event centroid as determined during the 
 gaussian fitting step.
 
-### Q) Is the `radius` parameter the distance from one cluster center to another?
+### Q) Is the radius parameter the distance from one cluster center to another?
 
 A) No. The radius is used to determine if two events are part of the same cluster. Inter cluster distances will all end up being greater
 than the value of the `radius` parameter, because any two individual events that are within that radius will be grouped together inside 
