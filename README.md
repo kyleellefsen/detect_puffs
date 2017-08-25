@@ -1,10 +1,11 @@
 ## detect_puffs ##
-detect\_puffs is a plugin for the image processing program [Flika](http://flika-org.github.io/).  It contains a set of algorithms for detecting local calcium signals from movies.
+detect\_puffs is a plugin for the image processing program [flika](http://flika-org.github.io/).  It contains a set of algorithms for detecting local calcium signals from movies.
 
 ### Tutorials ###
-[How to detect subcellular Ca2+ signals using Flika](
+[How to detect subcellular Ca2+ signals using flika](
 http://htmlpreview.github.io/?https://github.com/kyleellefsen/detect_puffs/blob/master/docs/How%20to%20detect%20subcellular%20Ca2%2B%20signals%20using%20Flika.html)
 
+[Guide to setting threshold_cluster() parameters](https://github.com/kyleellefsen/detect_puffs/blob/master/docs/detect_puffs_parameters.md)
 ### Sample Code ###
 ```python
 from plugins.detect_puffs.threshold_cluster import threshold_cluster
