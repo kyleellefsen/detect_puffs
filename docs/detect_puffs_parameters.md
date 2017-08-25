@@ -83,16 +83,14 @@ A) No. The radius is used to determine if two events are part of the same cluste
 than the value of the `radius` parameter, because any two individual events that are within that radius will be grouped together inside 
 a cluster.
 
-### Q) In the puff analyser, I sometimes get peaks identified as puffs that don’t really look as “proper” puffs in the ΔF vs time graph.
-How can I best locate this specific puff in my image stacks to make sure that what I detect is a real event?
+### Q) In the puff analyser, I sometimes get peaks identified as puffs that don’t really look as “proper” puffs in the ΔF vs time graph. How can I best locate this specific puff in my image stacks to make sure that what I detect is a real event?
 
 A) When a puff is selected in the puff analyzer GUI, the ROI in the data_window will move to be centered around that puff's centroid. 
 The centroid will also be highlighted. If you link the data_window to the blurred_window (by right-clicking the timeline at the bottom
 of the blurred_window), and copy and paste the ROI into the blurred_window, you can hover over different times in the F/F<sub>0</sub>
 trace window to visualize the event. This makes visual determination of if a detected event is a true positive much easier.
 
-### Q) Sometimes I detect puffs which take very long to terminate. The problem I have with them is that in the ΔF vs time graph 
-I cannot drag the dotted lines further left or right to capture the whole duration of the puff. Is there a way around this?
+### Q) Sometimes I detect puffs which take very long to terminate. The problem I have with them is that in the ΔF vs time graph I cannot drag the dotted lines further left or right to capture the whole duration of the puff. Is there a way around this?
 
 A) Yes there is! You can change the x-axis in the puff analyzer's ΔF vs time graph by adjusting the `paddingT_pre` and `paddingT_post`
 variables. Unfortunately this requires rerunning the `threshold_cluster()` function.
