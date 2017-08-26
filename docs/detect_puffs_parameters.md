@@ -18,7 +18,7 @@ The (spatially) gaussian blurred version of the normalized_window. The movie in 
 spatially diffuse the signals you are trying to detect are. This window will be used for event detection.
 
 ### roi_width (int)
-The width of the ROI in pixels. This parameter cannot be adjusted after it is passed into the `threshold_cluster()` function.
+The width of the ROI in pixels. The ROI is used to calculate the F/F<sub>0</sub> trace for each event. The value at each frame is the average of the pixel intensities inside the ROI at that frame. This parameter cannot be adjusted after it is passed into the `threshold_cluster()` function.
 
 ### paddingXY (int)
 How many pixels do you want to pad the ROI by when fitting with gaussian. If the `roi_width` is set to 3 and `paddingXY` is set to 10,
@@ -31,7 +31,7 @@ How many frames before the event detection should we look for the start of the e
 How many frames after the event detection should we look for the end of the event.
 
 ### maxSigmaForGaussianFit (int)
-When fitting with a gaussian, what is the upper bound for the sigma (width) or sigmax and sigmay (if fitting with a rotatable gaussian) parameter.
+When fitting with a gaussian, what is the upper bound for the sigma (width) or sigmax and sigmay (if fitting with a rotatable gaussian) parameter. Set this value to be as wide as your largest calcium event, in pixels. 
 
 ### rotatedfit (bool)
 Set this to True to fit to a 2D rotatable gaussian. If False, each event will be fit with a single circularly symmetric sigma (width) parameter. A rotatable gaussian has additional fitting parameters: a long axis with a sigmax (width), a short axis with a sigmay, and a theta (angle).
@@ -49,20 +49,16 @@ in that cluster, so that each event is the only event in its own cluster. To gro
 clusters are within the ROI, and press down the 'g' key. 
 
 ### maxPuffLen (int)
-maximum possible duration of puff length in frames.  If puffs last longer, use a bigger value.  This affects 'chunking' when 
-determining distances between pixels.  It's better to overestimate, although increasing too much will slow down analysis.
+This parameter isn't used anymore. Always set to 0.
 
 ### maxPuffDiameter (int)
-This affects 'chunking' when determining distances between pixels.    This value divided by two is also used as the radius for 
-calculating densities
+This value is used as the radius for calculating densities. Set it equal to the width in pixels of the largest event in your movie.
 
 ### blur_thresh (float)
-Get rid of all the pixels you are sure don't belong to puffs. All pixels in the blurred_window movie below this threshold won't be considered to be part of an event.
+Get rid of all the pixels you are sure don't belong to puffs. All pixels in the blurred_window movie below this threshold won't be considered to be part of an event. 
 
 ### time_factor (float)
-When looking for the nearest point of higher density, time and space don't need to be weighted equally.  This is how much time will be 
-'shrunk' in order to calculate distances relative to pixels.  Practically, the larger this number, the more points separated in time 
-will tend to be clustered together.  Use a higher time factor if you are sampling at high frame rates.
+When looking for the nearest point of higher density, time and space don't need to be weighted equally.  In other words, if there are 5 frames between two events that occurred at the same location and 5 pixels between two events that occured in the same frame, the 'distance' is not necessarily the same in both these examples. The time_factor is how many frames will be counted as the same 'distance' as 1 pixel. In other words, this is how much time will be 'shrunk' in order to calculate distances relative to pixels.  Practically, the larger this number, the more points separated in time will tend to be clustered together.  Use a higher time factor if you are sampling at high frame rates. If a single puff is getting broken up into multiple puffs over time, increase the time_factor.
 
 ### load_flika_file (bool)
 If this is set to True and there is a flika file with the same name and in the same location as the data_window file, all the processing
