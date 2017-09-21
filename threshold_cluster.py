@@ -58,8 +58,11 @@ else:
     from flika.process.file_ import open_file
     from flika.utils.misc import open_file_gui
     from flika.process import *
-    from flika.process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
     from flika.utils.misc import save_file_gui
+    if StrictVersion(flika_version) < StrictVersion('0.2.23'):
+        from flika.process.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
+    else:
+        from flika.utils.BaseProcess import BaseProcess, WindowSelector, SliderLabel, CheckBox
 
 from .puffs import Puffs, Puff
 from .groups import GroupAnalyzer, Group, Groups

@@ -42,9 +42,11 @@ else:
     from flika.process.roi import set_value
     from flika.roi import makeROI
     from flika.utils.io import tifffile
-
-    from flika.process.BaseProcess import SliderLabel, BaseProcess_noPriorWindow, FileSelector
     from ..threshold_cluster import threshold_cluster
+    if StrictVersion(flika_version) < StrictVersion('0.2.23'):
+        from flika.process.BaseProcess import SliderLabel, BaseProcess_noPriorWindow, FileSelector
+    else:
+        from flika.utils.BaseProcess import SliderLabel, BaseProcess_noPriorWindow, FileSelector
 
 
 cwd = os.path.dirname(os.path.abspath(__file__)) # cwd=r'C:\Users\Kyle Ellefsen\Documents\GitHub\Flika\plugins\puff_simulator'
