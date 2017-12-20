@@ -44,9 +44,9 @@ else:
     from flika.utils.io import tifffile
     from ..threshold_cluster import threshold_cluster
     if StrictVersion(flika_version) < StrictVersion('0.2.23'):
-        from flika.process.BaseProcess import SliderLabel, BaseProcess_noPriorWindow, FileSelector
+        from flika.process.BaseProcess import SliderLabel, BaseProcess_noPriorWindow, FileSelector, CheckBox
     else:
-        from flika.utils.BaseProcess import SliderLabel, BaseProcess_noPriorWindow, FileSelector
+        from flika.utils.BaseProcess import SliderLabel, BaseProcess_noPriorWindow, FileSelector, CheckBox
 
 
 cwd = os.path.dirname(os.path.abspath(__file__)) # cwd=r'C:\Users\Kyle Ellefsen\Documents\GitHub\Flika\plugins\puff_simulator'
@@ -129,66 +129,86 @@ class Simulate_Puffs(BaseProcess_noPriorWindow):
     def __init__(self):
         super().__init__()
         self.puffs=None
+
+    def get_init_settings_dict(self):
+        s = dict()
+        s['nFrames'] = 1000
+        s['puffAmplitude'] = 5
+        s['nPuffs'] = 10
+        s['mx'] = 128
+        s['my'] = 128
+        s['noisefree'] = False
+        return s
+
     def gui(self):
         self.gui_reset()
-        nFrames=SliderLabel(0)
+        nFrames = SliderLabel(0)
         nFrames.setRange(0,10000)
-        nFrames.setValue(1000)
-        puffAmplitude=SliderLabel(2)
+        puffAmplitude = SliderLabel(2)
         puffAmplitude.setRange(0,10)
-        puffAmplitude.setValue(5)
-        nPuffs=SliderLabel(0)
+        nPuffs = SliderLabel(0)
         nPuffs.setRange(1,100)
-        nPuffs.setValue(10)
-        pointsFile=FileSelector('*.txt')
+        pointsFile = FileSelector('*.txt')
+        mx = SliderLabel(0)
+        mx.setRange(1, 10000)
+        my = SliderLabel(0)
+        my.setRange(1, 10000)
+        noisefree = CheckBox()
         self.items.append({'name':'nFrames','string':'Movie Duration (frames)','object':nFrames})
         self.items.append({'name':'puffAmplitude','string':'Amplitude of puffs (multiples of SNR)','object':puffAmplitude})
         self.items.append({'name':'nPuffs','string':'number of puffs','object': nPuffs})
         self.items.append({'name':'pointsFile','string':'Location to save points','object': pointsFile})
+        self.items.append({'name': 'mx', 'string': 'Movie Width', 'object': mx})
+        self.items.append({'name': 'my', 'string': 'Movie Height', 'object': my})
+        self.items.append({'name': 'noisefree', 'string': 'Noise Free', 'object': noisefree})
         super().gui()
-    def __call__(self,nFrames=10000,puffAmplitude=5,nPuffs=10,pointsFile=''):
-        self.start()
-        self.newtif,self.puffs=generatePuffImage(nFrames,puffAmplitude,nPuffs)
-        self.newname=' Simulated Puffs '
-        if pointsFile!='':
-            print("Saving Points file at '{}'".format(pointsFile))
-            np.savetxt(pointsFile,self.puffs)
-        return self.end()
-simulate_puffs=Simulate_Puffs()
 
-def generatePuffImage(nFrames=10000,puffAmplitude=5,nPuffs=10):
+    def __call__(self, nFrames=10000, puffAmplitude=5, nPuffs=10, pointsFile='', mx=128, my=128, noisefree=False):
+        self.start()
+        self.newtif, self.puffs = generatePuffImage(nFrames, puffAmplitude, nPuffs, mx, my, noisefree)
+        self.newname = ' Simulated Puffs '
+        if pointsFile != '':
+            print("Saving Points file at '{}'".format(pointsFile))
+            np.savetxt(pointsFile, self.puffs)
+        return self.end()
+
+simulate_puffs = Simulate_Puffs()
+
+def generatePuffImage(nFrames=10000, puffAmplitude=5, nPuffs=10, mx=128, my=128, noisefree=False):
     tif=tifffile.TiffFile(os.path.join(cwd,'model_puff.stk'))
     model_puff=tif.asarray()
     model_puff=model_puff.reshape(model_puff.shape[0:3])
     model_puff=model_puff.astype(np.float64)
     model_puff-=model_puff[0:10].mean(0) #subtract baseline
     model_puff/=model_puff.max() # divide by max to normalize
-    
-    mx,my=128,128
-    A = random.randn(nFrames,mx,my) 
-    (dt,dy,dx)=model_puff.shape 
-    puffs=[]
-    offset=np.array([18,9.578511,9.33569]) #the peak of the puff occurs at t=18, x=9.578511, y=9.33569.  These numbers were determined by fitting in the absense of noise. 
+
+    if noisefree:
+        A = np.zeros((nFrames, mx, my), dtype=np.float)
+    else:
+        A = random.randn(nFrames, mx, my)
+    (dt, dy, dx) = model_puff.shape
+    puffs = []
+    offset = np.array([18,9.578511,9.33569]) #the peak of the puff occurs at t=18, x=9.578511, y=9.33569.  These numbers were determined by fitting in the absense of noise.
     for i in np.arange(nPuffs):
-        t=random.randint(0,nFrames-dt)
-        x=random.randint(0,mx-dx)
-        y=random.randint(0,my-dy)
-        tt=np.arange(t,t+dt,dtype=np.int)
-        xx=np.arange(x,x+dx,dtype=np.int)
-        yy=np.arange(y,y+dy,dtype=np.int)
+        t = random.randint(0,nFrames-dt)
+        x = random.randint(0,mx-dx)
+        y = random.randint(0,my-dy)
+        tt = np.arange(t,t+dt,dtype=np.int)
+        xx = np.arange(x,x+dx,dtype=np.int)
+        yy = np.arange(y,y+dy,dtype=np.int)
         # check if they are too close to other events
         if False:
             continue
-        A[np.ix_(tt,xx,yy)]=A[np.ix_(tt,xx,yy)]+puffAmplitude*model_puff
+        A[np.ix_(tt,xx,yy)] = A[np.ix_(tt,xx,yy)]+puffAmplitude*model_puff
         
         puffs.append([t+offset[0],x+offset[1],y+offset[2]])
-    puffs=np.array(puffs)
-    puffs=puffs[puffs[:,0].argsort()] #sort by time
+    puffs = np.array(puffs)
+    puffs = puffs[puffs[:,0].argsort()] #sort by time
     return A, puffs
     
 def detect_simulated_puffs():
-    tmpdir=os.path.join(os.path.dirname(g.settings.config_file),'tmp')
-    flika_fn='simulated_puffs.flika'
+    tmpdir = os.path.join(os.path.dirname(g.settings.config_file),'tmp')
+    flika_fn = 'simulated_puffs.flika'
     if os.path.isdir(tmpdir):
         if flika_fn in os.listdir(tmpdir):
             pass
@@ -197,21 +217,21 @@ def detect_simulated_puffs():
             os.mkdir(tmpdir)
     else:
         os.mkdir(tmpdir)
-    data_window=Window(generatePuffImage(),filename=os.path.join(tmpdir,'simulated_puffs.tif'))
-    mt,mx,my=data_window.image.shape
+    data_window = Window(generatePuffImage(),filename=os.path.join(tmpdir,'simulated_puffs.tif'))
+    mt,mx,my = data_window.image.shape
     data_window.setWindowTitle('Data Window')
-    norm_window=data_window
-    medB=3
+    norm_window = data_window
+    medB = 3
     gaussian_blur(medB,keepSourceWindow=True)
-    makeROI('rectangle',pts=np.array([[medB*2,medB*2],[medB*2,my-medB*2],[mx-medB*2,my-medB*2],[mx-medB*2,medB*2],[medB*2,medB*2]]))
-    set_value(0,0,mt-1,restrictToOutside=True)
+    makeROI('rectangle',pts = np.array([[medB*2,medB*2],[medB*2,my-medB*2],[mx-medB*2,my-medB*2],[mx-medB*2,medB*2],[medB*2,medB*2]]))
+    set_value(0,0,mt-1,restrictToOutside = True)
     g.m.currentWindow.setWindowTitle('Lightly Blurred')
-    binary_window2=threshold(.4,keepSourceWindow=True)
+    binary_window2 = threshold(.4,keepSourceWindow=True)
     norm_window.setAsCurrentWindow()
-    binary_window3=threshold(2,keepSourceWindow=True)
-    binary_window=Window(binary_window2.image+binary_window3.image)
+    binary_window3 = threshold(2,keepSourceWindow=True)
+    binary_window = Window(binary_window2.image+binary_window3.image)
     close([binary_window2,binary_window3])
-    binary_window=threshold(1.5)
+    binary_window = threshold(1.5)
     binary_window.setWindowTitle('Binary Window')
     threshold_cluster(binary_window,
                       data_window,
@@ -229,29 +249,29 @@ class Simulate_Blips(BaseProcess_noPriorWindow):
         super().__init__()
     def gui(self):
         self.gui_reset()
-        nFrames=SliderLabel(0)
+        nFrames = SliderLabel(0)
         nFrames.setRange(0,10000)
         self.items.append({'name':'nFrames','string':'Movie Duration (frames)','object':nFrames})
         super().gui()
-    def __call__(self,nFrames=10000):
+    def __call__(self, nFrames=10000):
         print('called')
         self.start()
-        self.newtif=generateBlipImage()
-        self.newname=' Simulated Blips '
+        self.newtif = generateBlipImage()
+        self.newname = ' Simulated Blips '
         return self.end()
-simulate_blips=Simulate_Blips()
+simulate_blips = Simulate_Blips()
 
-def generateBlip(sigma=1,amplitude=1,duration=1):
-    sigma=int(sigma)
-    width=sigma*8+1
-    xorigin=sigma*4
-    yorigin=sigma*4
-    x=np.arange(width)
-    y=np.arange(width)
-    x=x[:,None]
-    y=y[None,:]
-    gaussian=amplitude*(np.exp(-(x-xorigin)**2/(2.*sigma**2))*np.exp(-(y-yorigin)**2/(2.*sigma**2)))
-    blip=np.repeat(gaussian[None,:,:],repeats=duration,axis=0)
+def generateBlip(sigma=1, amplitude=1, duration=1):
+    sigma = int(sigma)
+    width = sigma*8+1
+    xorigin = sigma*4
+    yorigin = sigma*4
+    x = np.arange(width)
+    y = np.arange(width)
+    x = x[:, None]
+    y = y[None, :]
+    gaussian = amplitude*(np.exp(-(x-xorigin)**2/(2.*sigma**2))*np.exp(-(y-yorigin)**2/(2.*sigma**2)))
+    blip = np.repeat(gaussian[None,:,:],repeats=duration, axis=0)
     return blip
     
 
@@ -259,7 +279,7 @@ def generateBlipImage(amplitude=1):
     A = random.randn(1100,128,128) # tif.asarray() # A[t,y,x]
     
     #puffArray=[ x,    y,   ti, sigma, amplitude, duration] to create puffs
-    puffArray=[[ 10,    115,  50, 2, .2, 20], 
+    puffArray = [[ 10,    115,  50, 2, .2, 20],
                [ 40,   22,   100, 2, .2, 20],  
                [ 110,  10,   150, 2, .2, 20], 
                [ 118,  76,   200, 2, .2, 20], 
@@ -282,20 +302,20 @@ def generateBlipImage(amplitude=1):
                
     for p in puffArray:
         x, y, ti, sigma, amp, duration=p
-        amp*=2
+        amp *= 2
         blip = 3*generateBlip(sigma,amp,duration)
         dt, dx, dy = blip.shape
-        dx=(dx-1)/2
-        dy=(dy-1)/2
-        t=np.arange(ti,ti+duration,dtype=np.int)
-        y=np.arange(y-dy,y+dy+1,dtype=np.int)
-        x=np.arange(x-dx,x+dx+1,dtype=np.int)
-        A[np.ix_(t,y,x)]=A[np.ix_(t,y,x)]+amplitude*blip
+        dx = (dx-1)/2
+        dy = (dy-1)/2
+        t = np.arange(ti,ti+duration,dtype=np.int)
+        y = np.arange(y-dy,y+dy+1,dtype=np.int)
+        x = np.arange(x-dx,x+dx+1,dtype=np.int)
+        A[np.ix_(t,y,x)] = A[np.ix_(t,y,x)]+amplitude*blip
     return Window(A)
 
 def detect_simulated_blips(amplitude=1):
-    tmpdir=os.path.join(os.path.dirname(g.settings.config_file),'tmp')
-    flika_fn='simulated_blips.flika'
+    tmpdir = os.path.join(os.path.dirname(g.settings.config_file),'tmp')
+    flika_fn = 'simulated_blips.flika'
     if os.path.isdir(tmpdir):
         if flika_fn in os.listdir(tmpdir):
             pass
@@ -304,21 +324,21 @@ def detect_simulated_blips(amplitude=1):
             os.mkdir(tmpdir)
     else:
         os.mkdir(tmpdir)
-    data_window=Window(generateBlips(amplitude),filename=os.path.join(tmpdir,'simulated_blips.tif'))
-    mt,mx,my=data_window.image.shape
+    data_window = Window(generateBlips(amplitude),filename=os.path.join(tmpdir,'simulated_blips.tif'))
+    mt,mx,my = data_window.image.shape
     data_window.setWindowTitle('Data Window')
-    norm_window=data_window
-    medB=3
+    norm_window = data_window
+    medB = 3
     gaussian_blur(medB,keepSourceWindow=True)
     makeROI('rectangle',pts=np.array([[medB*2,medB*2],[medB*2,my-medB*2],[mx-medB*2,my-medB*2],[mx-medB*2,medB*2],[medB*2,medB*2]]))
     set_value(0,0,mt-1,restrictToOutside=True)
     g.m.currentWindow.setWindowTitle('Lightly Blurred')
-    binary_window2=threshold(.3,keepSourceWindow=True)
+    binary_window2 = threshold(.3,keepSourceWindow=True)
     norm_window.setAsCurrentWindow()
-    binary_window3=threshold(1.5,keepSourceWindow=True)
-    binary_window=Window(binary_window2.image+binary_window3.image)
+    binary_window3 = threshold(1.5,keepSourceWindow=True)
+    binary_window = Window(binary_window2.image+binary_window3.image)
     close([binary_window2,binary_window3])
-    binary_window=threshold(1.5)
+    binary_window = threshold(1.5)
     binary_window.setWindowTitle('Binary Window')
     threshold_cluster(binary_window,
                       data_window,
