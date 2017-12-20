@@ -271,15 +271,14 @@ class Puff:
         r = roi_width/2
         bb = [x-r, x+r+1, y-r, y+r+1]
         bb = [int(round(n)) for n in bb]
-        if I[0, bb[0]:bb[1], bb[2]:bb[3]].size==0: # check if roi exceeds the region we cut out of the window
-            if bb[0] < 0:
-                bb[0] = 0
-            if bb[2] < 0:
-                bb[2] = 0
-            if bb[1] > I.shape[1]:
-                bb[1] = I.shape[1]
-            if bb[3] > I.shape[2]:
-                bb[3] = I.shape[2]
+        if bb[0] < 0:
+            bb[0] = 0
+        if bb[2] < 0:
+            bb[2] = 0
+        if bb[1] > I.shape[1]:
+            bb[1] = I.shape[1]
+        if bb[3] > I.shape[2]:
+            bb[3] = I.shape[2]
         for i in np.arange(len(trace)):
             trace[i] = np.mean(I[i, bb[0]:bb[1], bb[2]:bb[3]])
         return trace, before, after
