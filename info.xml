@@ -16,6 +16,7 @@
 		<dependency name='leastsqbound'></dependency>
 		<dependency name='matplotlib'></dependency>
 		<dependency name='PyOpenGL'></dependency>
+		<dependency name='openpyxl'></dependency>
 	</dependencies>
 	<menu_layout>
 		<action location="threshold_cluster" function="threshold_cluster.gui">Threshold Cluster</action>
