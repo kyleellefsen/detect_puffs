@@ -460,8 +460,10 @@ class PuffAnalyzer(QWidget):
 
     def save(self):
         filename=self.data_window.filename
-        
         filename=os.path.splitext(filename)[0]+'.flika'
+        if len(filename) == 0:
+            g.alert('The original data file has no filename, so the .flika file cannot be saved.')
+            return None
         msg='Saving to {}'.format(filename)
         g.m.statusBar().showMessage(msg); print(msg)
         persistentInfo=PersistentInfo(self)
@@ -917,63 +919,61 @@ class PuffAnalyzer(QWidget):
         else:
             self.export(filename)
 
-    def export(self,filename):
-        ''' This function saves out all the info about the puffs        
+    def export(self, filename):
+        ''' This function saves out all the info about the puffs in an Excel spreadsheet.      
         '''
+        import openpyxl
+        if StrictVersion(openpyxl.__version__) < StrictVersion('2.5.2'):
+            g.alert('You are using openpyxl version {}. Upgrade to at least version 2.5.2 to export Excel file.'.format(openpyxl.__version__))
+            return None
         from openpyxl import Workbook
-        try:
-            from openpyxl.cell import get_column_letter
-        except ImportError:
-            from openpyxl.utils import get_column_letter
         g.m.statusBar().showMessage('Saving {}'.format(os.path.basename(filename)))
 
         workbook = Workbook() 
         sheet = workbook.create_sheet(title='Event Data')
         header=['Group #','Group x','Group y','No. Events','Max Amp','x','y','t_peak','Amplitude','sigmax','sigmay','angle','r20','r50','r80','r100','f80','f50','f20','f0']
         for j in np.arange(len(header)):
-            col = get_column_letter(j+1)
-            sheet.cell("{}{}".format(col,1)).value=header[j]
+            sheet.cell(row=1, column=j+1).value = header[j]
         row = 2
         groupN = 1
         for group in self.groups:
-            r = str(row)
             groupx, groupy = group.pos
             nEvents = len(group.puffs)
             maxAmp = np.max([puff.kinetics['amplitude'] for puff in group.puffs])
-            sheet.cell('A'+r).value = groupN
-            sheet.cell('B'+r).value = groupx
-            sheet.cell('C'+r).value = groupy
-            sheet.cell('D'+r).value = nEvents
-            sheet.cell('E'+r).value = maxAmp
+            sheet.cell(row=row, column=1).value = groupN
+            sheet.cell(row=row, column=2).value = groupx
+            sheet.cell(row=row, column=3).value = groupy
+            sheet.cell(row=row, column=4).value = nEvents
+            sheet.cell(row=row, column=5).value = maxAmp
             for puff in group.puffs:
                 r = str(row)
                 k = puff.kinetics
-                sheet.cell('F'+r).value = k['x']
-                sheet.cell('G'+r).value = k['y']
-                try: sheet.cell('H'+r).value = int(k['t_peak'])
+                sheet.cell(row=row, column=6).value = k['x']
+                sheet.cell(row=row, column=7).value = k['y']
+                try: sheet.cell(row=row, column=8).value = int(k['t_peak'])
                 except ValueError: pass
-                sheet.cell('I'+r).value = k['amplitude']
+                sheet.cell(row=row, column=9).value = k['amplitude']
                 if 'sigmax' in k.keys():
-                    sheet.cell('J'+r).value = k['sigmax']
-                    sheet.cell('K'+r).value = k['sigmay']
-                    sheet.cell('L'+r).value = k['angle']
+                    sheet.cell(row=row, column=10).value = k['sigmax']
+                    sheet.cell(row=row, column=11).value = k['sigmay']
+                    sheet.cell(row=row, column=12).value = k['angle']
                 else:
-                    sheet.cell('J'+r).value = k['sigma']
-                try: sheet.cell('M'+r).value = int(k['r20'])
+                    sheet.cell(row=row, column=10).value = k['sigma']
+                try: sheet.cell(row=row, column=13).value = int(k['r20'])
                 except ValueError: pass
-                try: sheet.cell('N'+r).value = int(k['r50'])
+                try: sheet.cell(row=row, column=14).value = int(k['r50'])
                 except ValueError: pass
-                try: sheet.cell('O'+r).value = int(k['r80'])
+                try: sheet.cell(row=row, column=15).value = int(k['r80'])
                 except ValueError: pass
-                try: sheet.cell('P'+r).value = int(k['t_peak']-k['t_start'])
+                try: sheet.cell(row=row, column=16).value = int(k['t_peak']-k['t_start'])
                 except ValueError: pass
-                try: sheet.cell('Q'+r).value = int(k['f80'])
+                try: sheet.cell(row=row, column=17).value = int(k['f80'])
                 except ValueError: pass
-                try: sheet.cell('R'+r).value = int(k['f50'])
+                try: sheet.cell(row=row, column=18).value = int(k['f50'])
                 except ValueError: pass
-                try: sheet.cell('S'+r).value = int(k['f20'])
+                try: sheet.cell(row=row, column=19).value = int(k['f20'])
                 except ValueError: pass
-                try: sheet.cell('T'+r).value = int(k['f0'])
+                try: sheet.cell(row=row, column=20).value = int(k['f0'])
                 except ValueError: pass
                 row += 1
             groupN += 1
@@ -991,30 +991,30 @@ class PuffAnalyzer(QWidget):
             ymax = int(min(y + r, self.data_window.my))
             trace = self.data_window.image[:, xmin:xmax+1, ymin:ymax+1]
             trace = np.mean(np.mean(trace, 1), 1)
-            col = get_column_letter(groupN)
-            sheet.cell(col+'1').value = "Group #{}".format(groupN)
+            sheet.cell(row=1, column=groupN).value = "Group #{}".format(groupN)
             if trace.dtype == np.float16:
                 trace = trace.astype(np.float)
             for i in np.arange(len(trace)):
-                sheet.cell(col+str(i+2)).value = trace[i]
+                sheet.cell(row=i+2, column=groupN).value = trace[i]
             groupN += 1
         
         sheet = workbook.create_sheet(title="Peak aligned Event Traces")
         groupN = 1
         max_peak_idx = np.max([puff.kinetics['t_peak']-puff.kinetics['t_start'] for puff in self.puffs])
         for puff in self.puffs.puffs:
-            col = get_column_letter(groupN)
+
             peak_idx = puff.kinetics['t_peak']-puff.kinetics['t_start']
             trace = puff.trace
             if trace.dtype == np.float16:
                 trace = trace.astype(np.float)
             for i in np.arange(len(trace)):
                 offset = max_peak_idx-peak_idx
-                sheet.cell(col+str(offset+i+1)).value = trace[i]
+                sheet.cell(row=offset+i+1, column=groupN).value = trace[i]
             groupN += 1
-        workbook.remove_sheet(workbook.worksheets[0])  # Get rid of blank first worksheet.
+        workbook.remove(workbook.worksheets[0])  # Get rid of blank first worksheet.
         workbook.save(filename)
-        g.m.statusBar().showMessage('Successfully saved {}'.format(os.path.basename(filename)))
+        g.alert('Successfully saved {}'.format(os.path.basename(filename)))
+        #g.m.statusBar().showMessage('Successfully saved {}'.format(os.path.basename(filename)))
             
 
 class threeD_plot(gl.GLViewWidget):
