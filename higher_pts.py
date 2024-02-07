@@ -5,7 +5,7 @@ Created on Mon Jan 04 15:17:57 2016
 @author: Kyle Ellefsen
 """
 import numpy as np
-from qtpy.QtWidgets import qApp
+from qtpy import QtWidgets
 from scipy import spatial
 import time
 from distutils.version import StrictVersion
@@ -28,7 +28,7 @@ else:
 
 def getMask(nt=5,nx=5,ny=5):
     mask=np.zeros((nt,nx,ny))
-    center=np.array([(nt-1)/2, (nx-1)/2, (ny-1)/2]).astype(np.int)
+    center=np.array([(nt-1)/2, (nx-1)/2, (ny-1)/2]).astype(int)
     t0,x0,y0=center
     for t in np.arange(nt):
         for x in np.arange(nx):
@@ -59,14 +59,14 @@ def getHigherPoints(blurred, udc):
     densities=blurred[idxs]
     densities_jittered=densities+np.arange(len(densities))/(2*np.float(len(densities))) #I do this so no two densities are the same, so each cluster has a peak.
     C = np.zeros(blurred.shape )
-    C_idx=np.zeros(blurred.shape, dtype=np.int)
+    C_idx=np.zeros(blurred.shape, dtype=int)
     idxs=np.vstack((idxs[0],idxs[1],idxs[2])).T
     C[idxs[:, 0], idxs[:, 1], idxs[:, 2]] = densities_jittered
     C_idx[idxs[:, 0], idxs[:,1], idxs[:,2]] = np.arange(len(idxs))
     print("Number of pixels to analyze: {}".format(len(idxs)))
     remander=np.arange(len(idxs))
     nTotal_pts = len(idxs)
-    block_ends = np.linspace(0, len(remander), nCores+1, dtype=np.int)
+    block_ends = np.linspace(0, len(remander), nCores+1, dtype=int)
     data_blocks = [remander[block_ends[i]:block_ends[i+1]] for i in np.arange(nCores)]
     
 
@@ -149,7 +149,7 @@ def getHigherPoints(blurred, udc):
             higher_pts[highest_pt]=[maxDistance, highest_pt, density]
         else:
             blockFrames=200
-            block_ends=np.arange(0,mt,blockFrames).astype(np.int)
+            block_ends=np.arange(0,mt,blockFrames).astype(int)
             block_ends=np.append(block_ends, mt)
             times_remander=idxs[remander][:,0]
             times_remander_blocks=[np.where(np.logical_and(times_remander>block_ends[i], times_remander<=block_ends[i+1]))[0] for i in np.arange(nCores)]
@@ -222,7 +222,7 @@ def getHigherPoint(q_results, q_progress, q_status, child_conn, args):
                 remander.append(ii)
             else:
                 distances=np.sqrt((positions[:,0]/time_factor)**2+positions[:,1]**2+positions[:,2]**2)
-                higher_pt=positions[np.argmin(distances)].astype(np.int)+np.array([t0,x0,y0])+center2
+                higher_pt=positions[np.argmin(distances)].astype(int)+np.array([t0,x0,y0])+center2
                 higher_pt=C_idx[higher_pt[0],higher_pt[1],higher_pt[2]]
                 higher_pt=[np.min(distances), higher_pt, density]
                 higher_pts[ii]=higher_pt
@@ -238,13 +238,13 @@ def getHigherPointSingleProcess(args, remander):
     progressBar1 = g.m.puffAnalyzer.algorithm_gui.higherPtsProgress1
     progressBar2 = g.m.puffAnalyzer.algorithm_gui.higherPtsProgress2
     progressBar1.setValue(0)
-    progressBar2.setValue(0); qApp.processEvents()
+    progressBar2.setValue(0); QtWidgets.QApplication.processEvents()
     nTotal_pts, C, idxs, densities_jittered, C_idx, time_factor=args
     mt,mx,my=C.shape
     higher_pts=np.zeros((nTotal_pts,3)) #['Distance to next highest point, index of higher point, value of current point']
     for r in np.arange(3,45,2):
         print(r)
-        progressBar2.setValue(100*r/45); qApp.processEvents()
+        progressBar2.setValue(100*r/45); QtWidgets.QApplication.processEvents()
         mask,center=getMask(r,r,r)
         oldremander=remander
         remander=[]
@@ -254,12 +254,12 @@ def getHigherPointSingleProcess(args, remander):
             if r==3:
                 if percent<int(100*ii/len(oldremander)):
                     percent=int(100*ii/len(oldremander))
-                    progressBar1.setValue(percent); qApp.processEvents()
+                    progressBar1.setValue(percent); QtWidgets.QApplication.processEvents()
                     toc=time.time()-tic
                     tic=time.time()
                     print('Calculating Higher Points Radius {}.  {}%  {}s'.format(r,percent, toc))
             else:
-                progressBar1.setValue(100); qApp.processEvents()
+                progressBar1.setValue(100); QtWidgets.QApplication.processEvents()
             idx=idxs[ii]
             density=densities_jittered[ii]
             posi=idx-center
@@ -302,10 +302,10 @@ def getHigherPointSingleProcess(args, remander):
                 remander.append(ii)
             else:
                 distances=np.sqrt((positions[:,0]/time_factor)**2+positions[:,1]**2+positions[:,2]**2)
-                higher_pt=positions[np.argmin(distances)].astype(np.int)+offset
+                higher_pt=positions[np.argmin(distances)].astype(int)+offset
                 higher_pt=C_idx[higher_pt[0],higher_pt[1],higher_pt[2]]
                 higher_pt=[np.min(distances), higher_pt, density]
                 higher_pts[ii]=higher_pt
-    progressBar2.setValue(100); qApp.processEvents()
+    progressBar2.setValue(100); QtWidgets.QApplication.processEvents()
     return higher_pts
 

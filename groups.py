@@ -1,6 +1,6 @@
 import numpy as np
 from qtpy.QtCore import Qt, Signal, QRect, QRectF, QPointF, QSizeF
-from qtpy.QtWidgets import qApp, QWidget, QGridLayout, QCheckBox, QComboBox, QFormLayout, QGraphicsPathItem, QGraphicsEllipseItem
+from qtpy.QtWidgets import QWidget, QGridLayout, QCheckBox, QComboBox, QFormLayout, QGraphicsPathItem, QGraphicsEllipseItem
 from qtpy.QtGui import QPainterPath
 import matplotlib
 import pyqtgraph as pg

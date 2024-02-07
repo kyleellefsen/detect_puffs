@@ -6,7 +6,7 @@ Created on Thu Apr 28 12:13:09 2016
 """
 import numpy as np
 from qtpy.QtCore import Qt
-from qtpy.QtWidgets import qApp
+from qtpy import QtWidgets
 import pyqtgraph as pg
 from .gaussianFitting import fitGaussian, fitRotGaussian
 
@@ -42,20 +42,20 @@ class Puffs:
         nClusters=len(self.clusters.clusters)
         for i in np.arange(nClusters):
             percent=i/nClusters
-            self.puffAnalyzer.algorithm_gui.gaussianProgress.setValue(percent*100); qApp.processEvents();
+            self.puffAnalyzer.algorithm_gui.gaussianProgress.setValue(percent*100); QtWidgets.QApplication.processEvents();
             self.puffs.append(Puff(i,self.clusters,self,persistentInfo))
         self.puffAnalyzer.algorithm_gui.gaussianProgress.setValue(100)
-        qApp.processEvents()
+        QtWidgets.QApplication.processEvents()
 
     def refit_gaussians(self):
         for i in np.arange(len(self.puffs)):
             percent = i / len(self.puffs)
             self.puffAnalyzer.algorithm_gui.gaussianProgress.setValue(percent * 100)
-            qApp.processEvents()
+            QtWidgets.QApplication.processEvents()
             puff = self.puffs[i]
             puff.refit_gaussian()
         self.puffAnalyzer.algorithm_gui.gaussianProgress.setValue(100)
-        qApp.processEvents()
+        QtWidgets.QApplication.processEvents()
 
     def __getitem__(self, item):
         if len(self.puffs)>0:

@@ -8,8 +8,8 @@ import numpy as np
 from distutils.version import StrictVersion
 from qtpy.QtGui import *
 from qtpy.QtCore import *
+from qtpy import QtWidgets
 from qtpy.QtWidgets import *
-from qtpy.QtWidgets import qApp
 import pyqtgraph as pg
 import matplotlib
 import matplotlib.cm
@@ -145,7 +145,7 @@ class Clusters():
                 centers.append(i)
             else:
                 outsideROI.append(i)
-        higher_pts2 = self.higher_pts[:, 1].astype(np.int)
+        higher_pts2 = self.higher_pts[:, 1].astype(int)
         points=[Point(i, self.idxs) for i in np.arange(len(higher_pts2))]
         loop=np.arange(len(higher_pts2))
         loop=np.delete(loop,centers)
@@ -157,7 +157,7 @@ class Clusters():
         self.scatterPlot.addPoints(pos=pts_outsideROI, brush=pg.mkBrush([0,0,255,255]))
         pts_centers_with_large_cluster=np.array([self.higher_pts[centers, 2], np.log(self.higher_pts[centers,0])]).T
         self.scatterPlot.addPoints(pos=pts_centers_with_large_cluster, brush=pg.mkBrush([0, 255, 0, 255]))
-        qApp.processEvents()
+        QtWidgets.QApplication.processEvents()
         if len(centers) == 0:
             self.puffAnalyzer.generatingClusterMovie = False
             return None

@@ -193,9 +193,9 @@ def generatePuffImage(nFrames=10000, puffAmplitude=5, nPuffs=10, mx=128, my=128,
         t = random.randint(0,nFrames-dt)
         x = random.randint(0,mx-dx)
         y = random.randint(0,my-dy)
-        tt = np.arange(t,t+dt,dtype=np.int)
-        xx = np.arange(x,x+dx,dtype=np.int)
-        yy = np.arange(y,y+dy,dtype=np.int)
+        tt = np.arange(t,t+dt,dtype=int)
+        xx = np.arange(x,x+dx,dtype=int)
+        yy = np.arange(y,y+dy,dtype=int)
         # check if they are too close to other events
         if False:
             continue
@@ -307,9 +307,9 @@ def generateBlipImage(amplitude=1):
         dt, dx, dy = blip.shape
         dx = (dx-1)/2
         dy = (dy-1)/2
-        t = np.arange(ti,ti+duration,dtype=np.int)
-        y = np.arange(y-dy,y+dy+1,dtype=np.int)
-        x = np.arange(x-dx,x+dx+1,dtype=np.int)
+        t = np.arange(ti,ti+duration,dtype=int)
+        y = np.arange(y-dy,y+dy+1,dtype=int)
+        x = np.arange(x-dx,x+dx+1,dtype=int)
         A[np.ix_(t,y,x)] = A[np.ix_(t,y,x)]+amplitude*blip
     return Window(A)
 

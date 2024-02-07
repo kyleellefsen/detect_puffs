@@ -28,7 +28,6 @@ from qtpy import QtWidgets, QtGui, QtCore
 from qtpy.QtWidgets import *
 from qtpy.QtGui import *
 from qtpy.QtCore import *
-from qtpy.QtWidgets import qApp
 from qtpy import uic
 import pyqtgraph as pg
 from scipy import ndimage
@@ -300,10 +299,10 @@ class PuffAnalyzer(QWidget):
         blurred = self.blurred_window.image
         higher_pts, idxs = getHigherPoints(blurred, self.udc)
         self.algorithm_gui.tabWidget.setCurrentIndex(1)
-        qApp.processEvents()
+        QtWidgets.QApplication.processEvents()
         self.clusters = Clusters(higher_pts, idxs, blurred.shape, self)
         self.algorithm_gui.tabWidget.setCurrentIndex(1)
-        qApp.processEvents()
+        QtWidgets.QApplication.processEvents()
         self.gettingClusters = False
 
     def loadPersistentInfo(self, persistentInfo):
@@ -1169,7 +1168,7 @@ class ScatterViewBox(ClusterViewBox):
     def colorSelected(self, color):
         self.color=color
         if color.isValid():
-            self.scatter_color=tuple((np.array(self.color.getRgbF())*255).astype(np.int))
+            self.scatter_color=tuple((np.array(self.color.getRgbF())*255).astype(int))
         
 
 class PersistentInfo:
