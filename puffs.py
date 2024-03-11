@@ -11,6 +11,11 @@ import pyqtgraph as pg
 from .gaussianFitting import fitGaussian, fitRotGaussian
 
 
+def reshape_bounds(bounds):
+    """Converts bounds from iterable of pairs to a pair of iterables."""
+    return (np.array([b[0] for b in bounds]), np.array([b[1] for b in bounds]))
+
+
 def scatterRemovePoints(scatterplot,idxs):
     i2=[i for i in np.arange(len(scatterplot.data)) if i not in idxs]
     points=scatterplot.points()
@@ -205,7 +210,7 @@ class Puff:
             p0 = p0+sister_p0
             fit_bounds = fit_bounds+sister_fit_bounds
         if self.udc['rotatedfit']:
-            p, I_fit, I_fit2 = fitRotGaussian(I,p0,fit_bounds,nGaussians=1+len(self.sisterPuffs))
+            p, I_fit, I_fit2 = fitRotGaussian(I,p0,reshape_bounds(fit_bounds),nGaussians=1+len(self.sisterPuffs))
             mean_image = I
             gaussianFit = I_fit2
             p[0] = p[0]+self.bounds[1][0] #Put back in regular coordinate system.  Add back x
@@ -215,7 +220,7 @@ class Puff:
             kinetics['sigmay'] = sigmay
             kinetics['angle'] = angle
         else:
-            p, I_fit, I_fit2 = fitGaussian(I, p0, fit_bounds, nGaussians=1+len(self.sisterPuffs))
+            p, I_fit, I_fit2 = fitGaussian(I, p0, reshape_bounds(fit_bounds), nGaussians=1+len(self.sisterPuffs))
             mean_image = I
             gaussianFit = I_fit2
             p[0] = p[0]+self.bounds[1][0] #Put back in regular coordinate system.  Add back x

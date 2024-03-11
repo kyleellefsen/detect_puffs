@@ -3,7 +3,7 @@
         detect_puffs
     </directory>
 	<version>
-		2024.02.06
+		2024.03.11
 	</version>
 	<author>
 		Kyle Ellefsen
@@ -13,7 +13,6 @@
 	</url>
 	<dependencies>
 		<dependency name='skimage'></dependency>
-		<dependency name='leastsqbound'></dependency>
 		<dependency name='matplotlib'></dependency>
 		<dependency name='PyOpenGL'></dependency>
 		<dependency name='openpyxl'></dependency>

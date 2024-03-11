@@ -7,7 +7,7 @@ Created on Mon Jul 21 10:32:00 2014
 name='Detect Puffs'
 base_dir='detect_puffs'
 date='11/15/2015'
-dependencies = ['skimage', 'leastsqbound', 'matplotlib','PyOpenGL']
+dependencies = ['skimage', 'matplotlib','PyOpenGL']
 
 menu_layout = {'Detect Puffs': \
 				{'Threshold Cluster': ['threshold_cluster', 'threshold_cluster.gui'],
