@@ -37,20 +37,20 @@ class Puffs:
         self.normalized_window = puffAnalyzer.normalized_window
         self.data_window = puffAnalyzer.data_window
         self.cluster_im = cluster_im
-        
         self.puffs=[]
         nClusters=len(self.clusters.clusters)
         for i in np.arange(nClusters):
-            percent=i/nClusters
-            self.puffAnalyzer.algorithm_gui.gaussianProgress.setValue(percent*100); QtWidgets.QApplication.processEvents();
-            self.puffs.append(Puff(i,self.clusters,self,persistentInfo))
+            percent = int(100 * (i/nClusters))
+            self.puffAnalyzer.algorithm_gui.gaussianProgress.setValue(percent)
+            QtWidgets.QApplication.processEvents()
+            self.puffs.append(Puff(i, self.clusters, self,persistentInfo))
         self.puffAnalyzer.algorithm_gui.gaussianProgress.setValue(100)
         QtWidgets.QApplication.processEvents()
 
     def refit_gaussians(self):
         for i in np.arange(len(self.puffs)):
-            percent = i / len(self.puffs)
-            self.puffAnalyzer.algorithm_gui.gaussianProgress.setValue(percent * 100)
+            percent = int(100 * (i / len(self.puffs)))
+            self.puffAnalyzer.algorithm_gui.gaussianProgress.setValue(percent)
             QtWidgets.QApplication.processEvents()
             puff = self.puffs[i]
             puff.refit_gaussian()

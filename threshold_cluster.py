@@ -438,7 +438,7 @@ class PuffAnalyzer(QWidget):
         self.scatterPlot=view.addPlot(viewBox=self.scatter_viewbox)
         self.scatter_viewbox.drawFinishedSignal.connect(self.lasso_puffs)
         self.scatter_viewbox.EnterPressedSignal.connect(self.reset_scatter_colors)
-        self.scatterPlot.addItem(self.s4)   
+        self.scatterPlot.addItem(self.s4)
         self.lastClickedScatterPt = []
         self.s4.sigClicked.connect(self.clickedScatter)
         self.scatterPlot.axes['bottom']['item'].setLabel('Sigma of Puff Gaussian Fit (pixels)')
@@ -992,7 +992,7 @@ class PuffAnalyzer(QWidget):
             trace = np.mean(np.mean(trace, 1), 1)
             sheet.cell(row=1, column=groupN).value = "Group #{}".format(groupN)
             if trace.dtype == np.float16:
-                trace = trace.astype(np.float)
+                trace = trace.astype(float)
             for i in np.arange(len(trace)):
                 sheet.cell(row=i+2, column=groupN).value = trace[i]
             groupN += 1
@@ -1005,7 +1005,7 @@ class PuffAnalyzer(QWidget):
             peak_idx = puff.kinetics['t_peak']-puff.kinetics['t_start']
             trace = puff.trace
             if trace.dtype == np.float16:
-                trace = trace.astype(np.float)
+                trace = trace.astype(float)
             for i in np.arange(len(trace)):
                 offset = max_peak_idx-peak_idx
                 sheet.cell(row=offset+i+1, column=groupN).value = trace[i]

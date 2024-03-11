@@ -183,7 +183,7 @@ def generatePuffImage(nFrames=10000, puffAmplitude=5, nPuffs=10, mx=128, my=128,
     model_puff/=model_puff.max() # divide by max to normalize
 
     if noisefree:
-        A = np.zeros((nFrames, mx, my), dtype=np.float)
+        A = np.zeros((nFrames, mx, my), dtype=float)
     else:
         A = random.randn(nFrames, mx, my)
     (dt, dy, dx) = model_puff.shape

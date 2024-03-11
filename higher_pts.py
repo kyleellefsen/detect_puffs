@@ -57,7 +57,7 @@ def getHigherPoints(blurred, udc):
     nCores = g.settings['nCores']
     idxs=np.where(blurred>blur_thresh)
     densities=blurred[idxs]
-    densities_jittered=densities+np.arange(len(densities))/(2*np.float(len(densities))) #I do this so no two densities are the same, so each cluster has a peak.
+    densities_jittered=densities+np.arange(len(densities))/(2*float(len(densities))) #I do this so no two densities are the same, so each cluster has a peak.
     C = np.zeros(blurred.shape )
     C_idx=np.zeros(blurred.shape, dtype=int)
     idxs=np.vstack((idxs[0],idxs[1],idxs[2])).T
@@ -96,9 +96,9 @@ def getHigherPoints(blurred, udc):
             dens2 = densities_jittered[remander]
             possible_higher_pts = np.where(densities_jittered>np.min(dens2))[0]
             dens3 = densities_jittered[possible_higher_pts]
-            pos1=idxs[remander].astype(np.float)
+            pos1=idxs[remander].astype(float)
             pos1[:,0]=pos1[:,0]/time_factor
-            pos2=idxs[possible_higher_pts].astype(np.float)
+            pos2=idxs[possible_higher_pts].astype(float)
             pos2[:,0]=pos2[:,0]/time_factor
             try:
                 print('Constructing {}x{} distance matrix'.format(len(pos1), len(pos2)))
@@ -129,7 +129,7 @@ def getHigherPoints(blurred, udc):
 
 
         elif False:
-            idxs_time_adjusted=idxs[:].astype(np.float)
+            idxs_time_adjusted=idxs[:].astype(float)
             idxs_time_adjusted[:,0]=idxs_time_adjusted[:,0]/time_factor
             while len(remander)>1:
                 print(len(remander))
@@ -153,7 +153,7 @@ def getHigherPoints(blurred, udc):
             block_ends=np.append(block_ends, mt)
             times_remander=idxs[remander][:,0]
             times_remander_blocks=[np.where(np.logical_and(times_remander>block_ends[i], times_remander<=block_ends[i+1]))[0] for i in np.arange(nCores)]
-            idxs_time_adjusted=idxs[:].astype(np.float)
+            idxs_time_adjusted=idxs[:].astype(float)
             idxs_time_adjusted[:,0]=idxs_time_adjusted[:,0]/time_factor
             for times_remander_block in times_remander_blocks:   # times_remander_block is the 
                 density_block=densities_jittered[times_remander_block]
@@ -244,7 +244,7 @@ def getHigherPointSingleProcess(args, remander):
     higher_pts=np.zeros((nTotal_pts,3)) #['Distance to next highest point, index of higher point, value of current point']
     for r in np.arange(3,45,2):
         print(r)
-        progressBar2.setValue(100*r/45); QtWidgets.QApplication.processEvents()
+        progressBar2.setValue(int(100*r/45)); QtWidgets.QApplication.processEvents()
         mask,center=getMask(r,r,r)
         oldremander=remander
         remander=[]

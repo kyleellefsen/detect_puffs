@@ -85,7 +85,7 @@ class Clusters():
             x = [d[2] for d in higher_pts_tmp]  # density
             pts = np.array([x,np.log(y)]).T
             self.scatterPlot=pg.ScatterPlotItem(size=5, pen=pg.mkPen([0,0,0,255]), brush=pg.mkBrush([0,0,255,255]))      
-            self.scatterPlot.setPoints(pos=pts)
+            self.scatterPlot.setData(pos=pts)
             self.pw.addItem(self.scatterPlot)
             self.pw.plotItem.axes['left']['item'].setLabel('Smallest distance to brighter pixel (natural logarithm)')
             self.pw.plotItem.axes['bottom']['item'].setLabel('Pixel Intensity')
@@ -119,7 +119,7 @@ class Clusters():
             self.puffAnalyzer.close()
 
         if self.persistentInfo is None:
-            self.puffAnalyzer.puffs=Puffs(self,self.cluster_im,self.puffAnalyzer)
+            self.puffAnalyzer.puffs=Puffs(self, self.cluster_im, self.puffAnalyzer)
             self.puffAnalyzer.preSetupUI()
             self.cluster_movie.close()
         else:
